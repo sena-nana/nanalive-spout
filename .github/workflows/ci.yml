@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  hygiene:
+    name: Format and advisory audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: RustSec advisory audit
+        run: cargo audit
+
+  windows:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Build (all targets)
+        run: cargo build --workspace --all-targets
+      - name: Test (default features)
+        run: cargo test --workspace
+      - name: Test (dx only)
+        run: cargo test --no-default-features --features dx
+      - name: Test (gl only)
+        run: cargo test --no-default-features --features gl
+      - name: Build (no backends)
+        run: cargo build --no-default-features
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Docs
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  non-windows-stub:
+    name: Non-Windows stub compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check (empty stub, no native build)
+        run: cargo check --workspace --all-targets

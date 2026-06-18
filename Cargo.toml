@@ -1,0 +1,51 @@
+[workspace]
+members = [".", "sys"]
+resolver = "3"
+
+[package]
+name = "spout2-rs"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "BSD-2-Clause"
+description = "Safe Windows bindings to Spout2 (DirectX 11 + OpenGL GPU/CPU texture sharing)"
+readme = "README.md"
+documentation = "https://docs.rs/spout2/latest/spout2/"
+keywords = ["spout", "spout2", "directx", "opengl"]
+categories = ["multimedia", "external-ffi-bindings"]
+
+[lib]
+name = "spout2"
+
+[features]
+default = ["dx", "gl"]
+dx = ["spout2-sys/dx"]
+gl = ["spout2-sys/gl"]
+
+[dependencies]
+spout2-sys = { path = "sys", version = "0.1.0", default-features = false }
+
+[[example]]
+name = "dx_sender"
+required-features = ["dx"]
+
+[[example]]
+name = "dx_receiver"
+required-features = ["dx"]
+
+[[example]]
+name = "gl_sender"
+required-features = ["gl"]
+
+[[example]]
+name = "gl_receiver"
+required-features = ["gl"]
+
+[[example]]
+name = "list_senders"
+
+[package.metadata.docs.rs]
+# Build docs for the real (Windows) target so the full API is documented.
+# The build script skips the native compile when DOCS_RS is set.
+default-target = "x86_64-pc-windows-msvc"
+all-features = true
