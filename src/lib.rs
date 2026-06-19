@@ -8,12 +8,15 @@
 //! - [`dx`] — DirectX 11, via the `spoutDX` class. Manages its own D3D11 device,
 //!   so sending/receiving works with plain pixel buffers and shared D3D11
 //!   textures without the caller setting up a graphics context.
+//! - [`dx12`] — DirectX 12, via the `spoutDX12` class and the D3D11On12 bridge.
+//!   Interoperates with D3D11 and OpenGL senders; GPU sharing wraps
+//!   `ID3D12Resource` textures through D3D11On12.
 //! - [`gl`] — OpenGL, via the `Spout` class. Shares GL textures directly; the
 //!   CPU pixel path needs a current GL context (or the hidden one created for
 //!   you — see [`gl::Sender::with_hidden_context`]).
 //!
-//! Each backend is gated behind a cargo feature (`dx` and `gl`, both enabled by
-//! default).
+//! Each backend is gated behind a cargo feature (`dx`, `dx12`, and `gl`; `dx` and
+//! `gl` are enabled by default).
 //!
 //! # Platform
 //!
@@ -30,7 +33,7 @@
 //! println!("Spout SDK {}", spout2::sdk_version());
 //! ```
 //!
-//! See the [`dx`] and [`gl`] modules for sending and receiving frames, and the
+//! See the [`dx`], [`dx12`], and [`gl`] modules for sending and receiving frames, and the
 //! `examples/` directory for runnable senders and receivers.
 #![cfg(windows)]
 #![warn(missing_docs)]
@@ -40,6 +43,8 @@ mod util;
 
 #[cfg(feature = "dx")]
 pub mod dx;
+#[cfg(feature = "dx12")]
+pub mod dx12;
 #[cfg(feature = "gl")]
 pub mod gl;
 

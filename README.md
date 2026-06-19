@@ -4,16 +4,21 @@ Safe Rust bindings to [**Spout2**](https://spout.zeal.co), the Windows system fo
 sharing video frames between applications in real time — either as zero-copy GPU
 textures or as CPU pixel buffers.
 
-The crate wraps the vendored Spout 2.007.017 C++ SDK and exposes **two backends**:
+The crate wraps the vendored Spout 2.007.017 C++ SDK and exposes **three backends**:
 
 | Module | Backend | Best for |
 | ------ | ------- | -------- |
 | [`dx`] | DirectX 11 (`spoutDX`) | The simplest path. Manages its own D3D11 device, so CPU pixel send/receive works with no graphics setup. Also shares `ID3D11Texture2D` handles. Great for wgpu/D3D apps and bridging to OBS, Resolume, TouchDesigner, etc. |
+| [`dx12`] | DirectX 12 (`spoutDX12`) | D3D12 apps via the **D3D11On12** bridge. Interoperates with D3D11 and OpenGL senders. CPU pixels work out of the box; GPU sharing wraps `ID3D12Resource` textures through D3D11On12. Opt-in via the `dx12` feature. |
 | [`gl`] | OpenGL (`Spout`) | Sharing OpenGL textures directly (glow/glium). The CPU path uses a hidden GL context Spout creates for you. |
 
-Both backends support sending **and** receiving, CPU pixel buffers **and** GPU
-textures, plus sender discovery, frame-rate/size/frame getters, and
+All backends support sending **and** receiving, CPU pixel buffers **and** GPU
+textures (where applicable), plus sender discovery, frame-rate/size/frame getters, and
 new-frame/connection detection.
+
+**Note:** Spout's inter-process protocol uses D3D11 shared textures. The `dx12`
+backend bridges D3D12 resources through Microsoft's D3D11On12 layer — it is not
+native D3D12 shared-handle sharing.
 
 Sender names are returned as `String` for ergonomic Rust use. Spout stores names
 as ANSI bytes, so byte-oriented APIs such as `dx::Receiver::sender_list_bytes`
@@ -45,13 +50,14 @@ The crate name you import is `spout2`:
 
 ```rust
 use spout2::dx;
+use spout2::dx12;
 use spout2::gl;
 ```
 
-Default features enable both backends. To pick one:
+Default features enable `dx` and `gl`. To pick backends:
 
 ```toml
-spout2-rs = { version = "0.1", default-features = false, features = ["dx"] }
+spout2-rs = { version = "0.1", default-features = false, features = ["dx12"] }
 ```
 
 ## Quick start
@@ -110,9 +116,16 @@ instead, and use the `unsafe` texture/FBO methods for zero-copy GPU sharing.
 
 ### GPU texture sharing
 
-- **DirectX:** [`dx::Sender::send_texture`] / [`dx::Receiver::sender_texture_ptr`]
+- **DirectX 11:** [`dx::Sender::send_texture`] / [`dx::Receiver::sender_texture_ptr`]
   work with `ID3D11Texture2D*` (as `*mut c_void`). Use
   [`dx::Sender::with_device`] to share your own D3D11 device.
+- **DirectX 12:** senders use [`dx12::Sender::with_device`] to share their D3D12
+  device, then [`dx12::Sender::wrap_resource`] once per render target and
+  [`dx12::Sender::send_wrapped_resource`] each frame. Receivers construct with
+  [`dx12::Receiver::with_device`] (so the receiving textures share that device —
+  required for the D3D11On12 wrap), then call [`dx12::Receiver::create_texture`]
+  after [`dx12::Receiver::is_updated`] and [`dx12::Receiver::receive_resource`]
+  each frame. Requires the `dx12` feature.
 - **OpenGL:** [`gl::Sender::send_texture`] / [`gl::Receiver::receive_texture`]
   take `GLuint` texture and FBO names.
 
@@ -126,6 +139,10 @@ current frame).
 cargo run --example list_senders   # prints the SDK version and running senders (no GPU)
 cargo run --example dx_sender       # publish a moving gradient (DirectX 11)
 cargo run --example dx_receiver     # receive and report frames (DirectX 11)
+cargo run --example dx12_sender --features dx12       # CPU pixels (DirectX 12)
+cargo run --example dx12_receiver --features dx12     # CPU receive (DirectX 12)
+cargo run --example dx12_gpu_sender --features dx12   # GPU texture send (D3D11On12)
+cargo run --example dx12_gpu_receiver --features dx12 # GPU texture receive
 cargo run --example gl_sender       # publish a moving gradient (OpenGL)
 cargo run --example gl_receiver     # receive and report frames (OpenGL)
 ```
@@ -169,7 +186,15 @@ Spout2 SDK (also BSD 2-Clause, © Lynn Jarvis). See [LICENSE](LICENSE) and
 [`sys/vendor/Spout2`](sys/vendor/Spout2) for details.
 
 [`dx`]: https://docs.rs/spout2/latest/spout2/dx/
+[`dx12`]: https://docs.rs/spout2/latest/spout2/dx12/
 [`gl`]: https://docs.rs/spout2/latest/spout2/gl/
+[`dx12::Sender::with_device`]: https://docs.rs/spout2/latest/spout2/dx12/struct.Sender.html#method.with_device
+[`dx12::Sender::wrap_resource`]: https://docs.rs/spout2/latest/spout2/dx12/struct.Sender.html#method.wrap_resource
+[`dx12::Receiver::with_device`]: https://docs.rs/spout2/latest/spout2/dx12/struct.Receiver.html#method.with_device
+[`dx12::Sender::send_wrapped_resource`]: https://docs.rs/spout2/latest/spout2/dx12/struct.Sender.html#method.send_wrapped_resource
+[`dx12::Receiver::create_texture`]: https://docs.rs/spout2/latest/spout2/dx12/struct.Receiver.html#method.create_texture
+[`dx12::Receiver::receive_resource`]: https://docs.rs/spout2/latest/spout2/dx12/struct.Receiver.html#method.receive_resource
+[`dx12::Receiver::is_updated`]: https://docs.rs/spout2/latest/spout2/dx12/struct.Receiver.html#method.is_updated
 [`dx::Sender::send_texture`]: https://docs.rs/spout2/latest/spout2/dx/struct.Sender.html#method.send_texture
 [`dx::Sender::with_device`]: https://docs.rs/spout2/latest/spout2/dx/struct.Sender.html#method.with_device
 [`dx::Receiver::sender_texture_ptr`]: https://docs.rs/spout2/latest/spout2/dx/struct.Receiver.html#method.sender_texture_ptr

@@ -54,11 +54,13 @@ fn main() {
     }
 
     let dx = std::env::var_os("CARGO_FEATURE_DX").is_some();
+    let dx12 = std::env::var_os("CARGO_FEATURE_DX12").is_some();
     let gl = std::env::var_os("CARGO_FEATURE_GL").is_some();
 
     let sdk = PathBuf::from("vendor/Spout2/SPOUTSDK");
     let gl_dir = sdk.join("SpoutGL");
     let dx_dir = sdk.join("SpoutDirectX/SpoutDX");
+    let dx12_dir = dx_dir.join("SpoutDX12");
 
     let mut build = cc::Build::new();
     build
@@ -87,10 +89,18 @@ fn main() {
         build.file(gl_dir.join(f));
     }
 
-    // The DirectX 11 backend adds the `spoutDX` class.
-    if dx {
+    // The DirectX 11 backend adds the `spoutDX` class. The DX12 backend inherits
+    // from spoutDX and also requires SpoutDX.cpp.
+    if dx || dx12 {
         build.file(dx_dir.join("SpoutDX.cpp"));
+    }
+    if dx {
         build.define("SPOUT2_SHIM_DX", None);
+    }
+    if dx12 {
+        build.file(dx12_dir.join("SpoutDX12.cpp"));
+        build.include(&dx12_dir);
+        build.define("SPOUT2_SHIM_DX12", None);
     }
     if gl {
         build.define("SPOUT2_SHIM_GL", None);
@@ -104,7 +114,8 @@ fn main() {
     // harmless and covers the ones added only via CMake target_link_libraries.
     for lib in [
         "opengl32", "gdi32", "user32", "kernel32", "advapi32", "shell32", "ole32", "oleaut32",
-        "uuid", "version", "winmm", "comdlg32", "comctl32", "d3d9", "d3d11", "dxgi", "psapi",
+        "uuid", "version", "winmm", "comdlg32", "comctl32", "d3d9", "d3d11", "d3d12", "dxgi",
+        "psapi",
     ] {
         println!("cargo:rustc-link-lib=dylib={lib}");
     }

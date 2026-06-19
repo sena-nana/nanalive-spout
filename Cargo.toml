@@ -4,14 +4,14 @@ resolver = "3"
 
 [package]
 name = "spout2-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 license = "BSD-2-Clause"
-description = "Safe Windows bindings to Spout2 (DirectX 11 + OpenGL GPU/CPU texture sharing)"
+description = "Safe Windows bindings to Spout2 (DirectX 11/12 + OpenGL GPU/CPU texture sharing)"
 readme = "README.md"
 documentation = "https://docs.rs/spout2/latest/spout2/"
-keywords = ["spout", "spout2", "directx", "opengl"]
+keywords = ["spout", "spout2", "directx", "directx12", "opengl"]
 categories = ["multimedia", "external-ffi-bindings"]
 
 [lib]
@@ -20,10 +20,22 @@ name = "spout2"
 [features]
 default = ["dx", "gl"]
 dx = ["spout2-sys/dx"]
+dx12 = ["spout2-sys/dx12"]
 gl = ["spout2-sys/gl"]
 
 [dependencies]
-spout2-sys = { path = "sys", version = "0.1.0", default-features = false }
+spout2-sys = { path = "sys", version = "0.1.1", default-features = false }
+
+[dev-dependencies]
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D12",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Security",
+    "Win32_System_Threading",
+] }
 
 [[example]]
 name = "dx_sender"
@@ -32,6 +44,22 @@ required-features = ["dx"]
 [[example]]
 name = "dx_receiver"
 required-features = ["dx"]
+
+[[example]]
+name = "dx12_sender"
+required-features = ["dx12"]
+
+[[example]]
+name = "dx12_receiver"
+required-features = ["dx12"]
+
+[[example]]
+name = "dx12_gpu_sender"
+required-features = ["dx12"]
+
+[[example]]
+name = "dx12_gpu_receiver"
+required-features = ["dx12"]
 
 [[example]]
 name = "gl_sender"

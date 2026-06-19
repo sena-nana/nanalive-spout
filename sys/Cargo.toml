@@ -1,6 +1,6 @@
 [package]
 name = "spout2-sys"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 license = "BSD-2-Clause"
@@ -19,6 +19,8 @@ include = [
     "vendor/Spout2/SPOUTSDK/SpoutGL/*.h",
     "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp",
     "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h",
+    "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.cpp",
+    "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX12/SpoutDX12.h",
 ]
 
 [lib]
@@ -27,6 +29,7 @@ name = "spout2_sys"
 [features]
 default = ["dx", "gl"]
 dx = []
+dx12 = []
 gl = []
 
 [build-dependencies]

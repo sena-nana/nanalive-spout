@@ -15,7 +15,7 @@ pub const SPOUT_SDK_VERSION: &str = "2.007.017";
 #[cfg(windows)]
 mod ffi {
     use core::ffi::{c_char, c_int};
-    #[cfg(any(feature = "dx", feature = "gl"))]
+    #[cfg(any(feature = "dx", feature = "dx12", feature = "gl"))]
     use core::ffi::{c_double, c_long, c_uint, c_void};
 
     unsafe extern "C" {
@@ -109,6 +109,123 @@ mod ffi {
         ) -> c_int;
         pub fn spout_dx_get_sender_info(
             h: *mut spout_dx_t,
+            name: *const c_char,
+            width: *mut c_uint,
+            height: *mut c_uint,
+            share_handle: *mut *mut c_void,
+            format: *mut c_uint,
+        ) -> c_int;
+    }
+
+    // ===================================================================
+    // DirectX 12 backend
+    // ===================================================================
+    /// Opaque handle to a `spoutDX12` instance.
+    #[cfg(feature = "dx12")]
+    #[repr(C)]
+    pub struct spout_dx12_t {
+        _private: [u8; 0],
+    }
+
+    #[cfg(feature = "dx12")]
+    unsafe extern "C" {
+        pub fn spout_dx12_create() -> *mut spout_dx12_t;
+        pub fn spout_dx12_destroy(h: *mut spout_dx12_t);
+
+        pub fn spout_dx12_open_directx12(
+            h: *mut spout_dx12_t,
+            device: *mut c_void,
+            command_queue: *mut *mut c_void,
+        ) -> c_int;
+        pub fn spout_dx12_close_directx12(h: *mut spout_dx12_t);
+        pub fn spout_dx12_get_d3d12_device(h: *mut spout_dx12_t) -> *mut c_void;
+        pub fn spout_dx12_get_device(h: *mut spout_dx12_t) -> *mut c_void;
+        pub fn spout_dx12_get_context(h: *mut spout_dx12_t) -> *mut c_void;
+        pub fn spout_dx12_get_d3d11on12_device(h: *mut spout_dx12_t) -> *mut c_void;
+
+        pub fn spout_dx12_wrap_resource(
+            h: *mut spout_dx12_t,
+            d3d12_resource: *mut c_void,
+            initial_state: c_uint,
+            out_wrapped11: *mut *mut c_void,
+        ) -> c_int;
+        pub fn spout_dx12_send_wrapped_resource(
+            h: *mut spout_dx12_t,
+            wrapped11: *mut c_void,
+        ) -> c_int;
+        pub fn spout_dx12_release_wrapped_resource(wrapped11: *mut c_void);
+        pub fn spout_dx12_receive_resource(
+            h: *mut spout_dx12_t,
+            pp_d3d12_resource: *mut *mut c_void,
+        ) -> c_int;
+        pub fn spout_dx12_create_texture(
+            h: *mut spout_dx12_t,
+            device: *mut c_void,
+            width: c_uint,
+            height: c_uint,
+            initial_state: c_uint,
+            format: c_uint,
+            out_texture: *mut *mut c_void,
+        ) -> c_int;
+
+        pub fn spout_dx12_set_sender_name(h: *mut spout_dx12_t, name: *const c_char) -> c_int;
+        pub fn spout_dx12_set_sender_format(h: *mut spout_dx12_t, dxgi_format: c_uint);
+        pub fn spout_dx12_release_sender(h: *mut spout_dx12_t);
+        pub fn spout_dx12_send_image(
+            h: *mut spout_dx12_t,
+            data: *const u8,
+            width: c_uint,
+            height: c_uint,
+            pitch: c_uint,
+        ) -> c_int;
+        pub fn spout_dx12_is_initialized(h: *mut spout_dx12_t) -> c_int;
+        pub fn spout_dx12_get_name(h: *mut spout_dx12_t, buf: *mut c_char, maxlen: c_int) -> c_int;
+        pub fn spout_dx12_get_width(h: *mut spout_dx12_t) -> c_uint;
+        pub fn spout_dx12_get_height(h: *mut spout_dx12_t) -> c_uint;
+        pub fn spout_dx12_get_fps(h: *mut spout_dx12_t) -> c_double;
+        pub fn spout_dx12_get_frame(h: *mut spout_dx12_t) -> c_long;
+        pub fn spout_dx12_hold_fps(h: *mut spout_dx12_t, fps: c_int);
+
+        pub fn spout_dx12_set_receiver_name(h: *mut spout_dx12_t, name: *const c_char);
+        pub fn spout_dx12_release_receiver(h: *mut spout_dx12_t);
+        pub fn spout_dx12_receive_image(
+            h: *mut spout_dx12_t,
+            pixels: *mut u8,
+            width: c_uint,
+            height: c_uint,
+            rgb: c_int,
+            invert: c_int,
+        ) -> c_int;
+        pub fn spout_dx12_select_sender(h: *mut spout_dx12_t, hwnd: *mut c_void) -> c_int;
+        pub fn spout_dx12_is_updated(h: *mut spout_dx12_t) -> c_int;
+        pub fn spout_dx12_is_connected(h: *mut spout_dx12_t) -> c_int;
+        pub fn spout_dx12_is_frame_new(h: *mut spout_dx12_t) -> c_int;
+        pub fn spout_dx12_get_sender_handle(h: *mut spout_dx12_t) -> *mut c_void;
+        pub fn spout_dx12_get_sender_format(h: *mut spout_dx12_t) -> c_uint;
+        pub fn spout_dx12_get_sender_name(
+            h: *mut spout_dx12_t,
+            buf: *mut c_char,
+            maxlen: c_int,
+        ) -> c_int;
+        pub fn spout_dx12_get_sender_width(h: *mut spout_dx12_t) -> c_uint;
+        pub fn spout_dx12_get_sender_height(h: *mut spout_dx12_t) -> c_uint;
+        pub fn spout_dx12_get_sender_fps(h: *mut spout_dx12_t) -> c_double;
+        pub fn spout_dx12_get_sender_frame(h: *mut spout_dx12_t) -> c_long;
+
+        pub fn spout_dx12_get_sender_count(h: *mut spout_dx12_t) -> c_int;
+        pub fn spout_dx12_get_sender_name_at(
+            h: *mut spout_dx12_t,
+            index: c_int,
+            buf: *mut c_char,
+            maxlen: c_int,
+        ) -> c_int;
+        pub fn spout_dx12_get_active_sender(
+            h: *mut spout_dx12_t,
+            buf: *mut c_char,
+            maxlen: c_int,
+        ) -> c_int;
+        pub fn spout_dx12_get_sender_info(
+            h: *mut spout_dx12_t,
             name: *const c_char,
             width: *mut c_uint,
             height: *mut c_uint,
