@@ -26,7 +26,7 @@ gl = ["spout2-sys/gl"]
 [dependencies]
 spout2-sys = { path = "sys", version = "0.1.1", default-features = false }
 
-[dev-dependencies]
+[target.'cfg(windows)'.dev-dependencies]
 windows = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Graphics_Direct3D",
