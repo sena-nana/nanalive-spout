@@ -32,12 +32,17 @@ windows = { version = "0.61", features = [
     "Win32_Graphics_Dxgi",
     "Win32_Graphics_Dxgi_Common",
     "Win32_Security",
+    "Win32_System_Performance",
     "Win32_System_Threading",
 ] }
 
 [[example]]
 name = "cpu_dx11_sender"
 required-features = ["cpu-dx11"]
+
+[[example]]
+name = "spout_perf"
+required-features = ["cpu-dx11", "gpu-dx12-experimental"]
 
 [package.metadata.docs.rs]
 # Build docs for the real (Windows) target so the full API is documented.

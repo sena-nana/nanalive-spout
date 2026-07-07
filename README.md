@@ -74,6 +74,31 @@ Enable it with:
 nanavts-spout = { path = "...", default-features = false, features = ["gpu-dx12-experimental"] }
 ```
 
+## Performance Probe
+
+The `spout_perf` example compares the CPU DX11 sender path and the experimental
+GPU DX12 sender path on Windows:
+
+```text
+cargo run --example spout_perf --features gpu-dx12-experimental -- --mode both --frames 600 --warmup 60
+```
+
+It reports per-frame publish-call latency (`publish(...)` entry to return),
+process CPU usage, process GPU Engine usage, Spout FPS, and frame counters.
+GPU usage depends on the Windows GPU Engine performance counters; on systems
+where those counters are unavailable, the tool reports `n/a` with the reason
+instead of inventing a value.
+
+Useful options:
+
+```text
+--mode both|cpu|gpu-dx12
+--width 1280 --height 720
+--frames 600 --warmup 60
+--name nanavts-spout-perf
+--csv
+```
+
 ## Build Checks
 
 ```text
