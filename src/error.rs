@@ -1,70 +1,61 @@
-//! Error type for the safe Spout2 API.
+//! Error type for NanaVTS Spout output.
 
 use core::fmt;
 
-/// Errors returned by Spout2 operations.
-///
-/// The underlying Spout SDK reports failure only via `false` return values and
-/// null pointers — there is no error code or message — so these variants
-/// capture *which* operation failed plus the cases we can detect structurally
-/// (buffer sizing, interior NULs, null handles).
-#[non_exhaustive]
+/// Errors returned by NanaVTS Spout output operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SpoutError {
-    /// A Spout operation returned `false`. The string names the operation.
-    OperationFailed(&'static str),
-    /// An operation required an initialized sender/receiver/device that was not ready.
-    NotInitialized,
-    /// The SDK returned a null handle/pointer where a value was expected.
-    NullHandle(&'static str),
-    /// A supplied pixel buffer was too small for `width * height * channels`.
-    BufferSize {
-        /// Minimum number of bytes required.
-        expected: usize,
-        /// Number of bytes actually provided.
-        got: usize,
-    },
-    /// The requested image dimensions overflowed `usize` when calculating buffer size.
-    DimensionOverflow {
+pub enum SpoutOutputError {
+    /// The current target cannot run Spout output.
+    UnsupportedPlatform,
+    /// The requested backend was not compiled in or could not be initialized.
+    BackendUnavailable,
+    /// The requested surface format is not supported by this backend.
+    SurfaceFormatUnsupported,
+    /// A required graphics-device interop path is unavailable.
+    DeviceInteropUnavailable,
+    /// Publishing a frame failed.
+    PublishFailed,
+    /// Sender name contains an interior NUL byte.
+    InvalidSenderName,
+    /// Frame dimensions are zero or do not fit in memory.
+    InvalidFrameDimensions {
         /// Requested width in pixels.
         width: u32,
         /// Requested height in pixels.
         height: u32,
-        /// Bytes required for each row (saturated to `usize::MAX` if the per-row
-        /// size itself overflowed).
-        bytes_per_row: usize,
     },
-    /// A name contained an interior NUL byte and could not be passed to C.
-    InvalidName,
-    /// Failed to create a graphics device or context. The string names the resource.
-    InitFailed(&'static str),
+    /// The supplied CPU pixel buffer is too small for the frame.
+    BufferTooSmall {
+        /// Minimum number of bytes required.
+        expected: usize,
+        /// Number of bytes provided.
+        got: usize,
+    },
 }
 
-impl fmt::Display for SpoutError {
+impl fmt::Display for SpoutOutputError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SpoutError::OperationFailed(op) => write!(f, "Spout operation `{op}` failed"),
-            SpoutError::NotInitialized => write!(f, "Spout object is not initialized"),
-            SpoutError::NullHandle(what) => write!(f, "Spout returned a null {what}"),
-            SpoutError::BufferSize { expected, got } => write!(
-                f,
-                "pixel buffer too small: need at least {expected} bytes, got {got}"
-            ),
-            SpoutError::DimensionOverflow {
-                width,
-                height,
-                bytes_per_row,
-            } => write!(
-                f,
-                "image dimensions {width}x{height} at {bytes_per_row} bytes per row overflow usize"
-            ),
-            SpoutError::InvalidName => write!(f, "name contained an interior NUL byte"),
-            SpoutError::InitFailed(what) => write!(f, "failed to initialize {what}"),
+            Self::UnsupportedPlatform => write!(f, "Spout output is only supported on Windows"),
+            Self::BackendUnavailable => write!(f, "Spout backend is unavailable"),
+            Self::SurfaceFormatUnsupported => write!(f, "surface format is unsupported"),
+            Self::DeviceInteropUnavailable => write!(f, "graphics device interop is unavailable"),
+            Self::PublishFailed => write!(f, "failed to publish Spout frame"),
+            Self::InvalidSenderName => write!(f, "sender name contains an interior NUL byte"),
+            Self::InvalidFrameDimensions { width, height } => {
+                write!(f, "invalid Spout frame dimensions {width}x{height}")
+            }
+            Self::BufferTooSmall { expected, got } => {
+                write!(
+                    f,
+                    "pixel buffer too small: need {expected} bytes, got {got}"
+                )
+            }
         }
     }
 }
 
-impl std::error::Error for SpoutError {}
+impl std::error::Error for SpoutOutputError {}
 
-/// Convenience result alias for Spout operations.
-pub type Result<T> = core::result::Result<T, SpoutError>;
+/// Convenience result alias for Spout output operations.
+pub type Result<T> = core::result::Result<T, SpoutOutputError>;

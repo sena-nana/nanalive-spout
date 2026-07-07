@@ -1,60 +1,203 @@
-//! Safe, idiomatic Rust bindings to [Spout2](https://spout.zeal.co), the Windows
-//! GPU/CPU texture-sharing system.
+//! NanaVTS-focused Spout sender output backend.
 //!
-//! Spout lets applications share video frames in real time, either as GPU
-//! textures (zero-copy, via shared DirectX/OpenGL handles) or as CPU pixel
-//! buffers. This crate wraps the vendored Spout2 SDK and offers two backends:
-//!
-//! - [`dx`] — DirectX 11, via the `spoutDX` class. Manages its own D3D11 device,
-//!   so sending/receiving works with plain pixel buffers and shared D3D11
-//!   textures without the caller setting up a graphics context.
-//! - [`dx12`] — DirectX 12, via the `spoutDX12` class and the D3D11On12 bridge.
-//!   Interoperates with D3D11 and OpenGL senders; GPU sharing wraps
-//!   `ID3D12Resource` textures through D3D11On12.
-//! - [`gl`] — OpenGL, via the `Spout` class. Shares GL textures directly; the
-//!   CPU pixel path needs a current GL context (or the hidden one created for
-//!   you — see [`gl::Sender::with_hidden_context`]).
-//!
-//! Each backend is gated behind a cargo feature (`dx`, `dx12`, and `gl`; `dx` and
-//! `gl` are enabled by default).
-//!
-//! # Platform
-//!
-//! Spout is Windows-only and requires the MSVC toolchain. On other platforms
-//! this crate compiles to an empty stub so that `cargo check` / `cargo doc`
-//! still succeed. The supported architecture is `x86_64`; Windows on ARM
-//! (`aarch64`) is not supported, because the vendored SSE2 SIMD sources are not
-//! adapted to ARM.
-//!
-//! # Example
-//!
-//! ```no_run
-//! // Works without a GPU — print the linked Spout SDK version.
-//! println!("Spout SDK {}", spout2::sdk_version());
-//! ```
-//!
-//! See the [`dx`], [`dx12`], and [`gl`] modules for sending and receiving frames, and the
-//! `examples/` directory for runnable senders and receivers.
-#![cfg(windows)]
+//! The public API intentionally exposes only the controlled output surface used
+//! by NanaVTS: CPU DirectX 11 sender output by default and an opt-in
+//! experimental DirectX 12 GPU sender path.
 #![warn(missing_docs)]
 
 mod error;
 mod util;
 
-#[cfg(feature = "dx")]
-pub mod dx;
-#[cfg(feature = "dx12")]
-pub mod dx12;
-#[cfg(feature = "gl")]
-pub mod gl;
+#[cfg(feature = "cpu-dx11")]
+mod cpu_dx11;
+#[cfg(feature = "gpu-dx12-experimental")]
+mod gpu_dx12;
 
-pub use error::{Result, SpoutError};
+use core::ffi::c_void;
 
-/// The Spout SDK version this crate is built against (e.g. `"2.007.017"`).
-pub use spout2_sys::SPOUT_SDK_VERSION;
+pub use error::{Result, SpoutOutputError};
 
-/// Returns the Spout SDK version string reported by the linked native library
-/// (e.g. `"2.007.017"`). This should match [`SPOUT_SDK_VERSION`].
+#[cfg(feature = "cpu-dx11")]
+pub use cpu_dx11::CpuDx11Sender;
+#[cfg(feature = "gpu-dx12-experimental")]
+pub use gpu_dx12::{GpuDx12ExperimentalSender, ID3D12CommandQueue, ID3D12Device};
+
+/// The Spout SDK version this crate is built against.
+pub use nanavts_spout_sys::SPOUT_SDK_VERSION;
+
+/// NanaVTS Spout output backend kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpoutBackendKind {
+    /// CPU pixel upload through Spout's DirectX 11 sender path.
+    CpuDx11,
+    /// Experimental GPU texture output through Spout's D3D11On12 DX12 bridge.
+    GpuDx12Experimental,
+}
+
+/// Supported shared-surface formats.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpoutFormat(u32);
+
+impl SpoutFormat {
+    /// `DXGI_FORMAT_B8G8R8A8_UNORM`, the default NanaVTS CPU output format.
+    pub const B8G8R8A8_UNORM: Self = Self(87);
+    /// `DXGI_FORMAT_R8G8B8A8_UNORM`.
+    pub const R8G8B8A8_UNORM: Self = Self(28);
+    /// `DXGI_FORMAT_R8G8B8A8_UNORM_SRGB`.
+    pub const R8G8B8A8_UNORM_SRGB: Self = Self(29);
+
+    /// Return the raw `DXGI_FORMAT` value.
+    pub const fn dxgi_format(self) -> u32 {
+        self.0
+    }
+
+    /// Build a supported format from a raw `DXGI_FORMAT` value.
+    pub fn from_dxgi_format(dxgi_format: u32) -> Result<Self> {
+        let format = Self(dxgi_format);
+        if format.is_supported() {
+            Ok(format)
+        } else {
+            Err(SpoutOutputError::SurfaceFormatUnsupported)
+        }
+    }
+
+    pub(crate) const fn is_supported(self) -> bool {
+        matches!(self.0, 87 | 28 | 29)
+    }
+}
+
+impl Default for SpoutFormat {
+    fn default() -> Self {
+        Self::B8G8R8A8_UNORM
+    }
+}
+
+/// Borrowed frame data to publish.
+#[derive(Debug, Clone, Copy)]
+pub enum SpoutFrameRef<'a> {
+    /// CPU RGBA/BGRA 8-bit pixels. `pitch_bytes` may be `None` for tightly packed rows.
+    CpuPixels {
+        /// Borrowed pixel bytes.
+        pixels: &'a [u8],
+        /// Frame width in pixels.
+        width: u32,
+        /// Frame height in pixels.
+        height: u32,
+        /// Optional row pitch in bytes.
+        pitch_bytes: Option<u32>,
+    },
+    /// Experimental D3D12 texture resource for GPU output.
+    Dx12Resource {
+        /// Raw `ID3D12Resource*`.
+        resource: *mut c_void,
+        /// `D3D12_RESOURCE_STATES` value describing the current resource state.
+        initial_state: u32,
+    },
+}
+
+/// Current Spout output state.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpoutStatus {
+    /// Whether this backend is available on the current platform/build.
+    pub available: bool,
+    /// Whether output is enabled by the owning application.
+    pub enabled: bool,
+    /// Whether a sender has published at least one frame.
+    pub active: bool,
+    /// Active backend kind, if available.
+    pub backend: Option<SpoutBackendKind>,
+    /// Current sender width.
+    pub width: Option<u32>,
+    /// Current sender height.
+    pub height: Option<u32>,
+    /// Measured Spout frame rate.
+    pub fps: Option<f64>,
+    /// Current Spout frame counter.
+    pub frame: Option<i64>,
+    /// Last backend error, if any.
+    pub error: Option<String>,
+}
+
+impl SpoutStatus {
+    /// Build an available but inactive status for a backend.
+    pub fn available(backend: SpoutBackendKind) -> Self {
+        Self {
+            available: true,
+            enabled: false,
+            active: false,
+            backend: Some(backend),
+            width: None,
+            height: None,
+            fps: None,
+            frame: None,
+            error: None,
+        }
+    }
+
+    /// Build an unavailable status for a backend.
+    pub fn unavailable(backend: SpoutBackendKind, error: impl Into<String>) -> Self {
+        Self {
+            available: false,
+            enabled: false,
+            active: false,
+            backend: Some(backend),
+            width: None,
+            height: None,
+            fps: None,
+            frame: None,
+            error: Some(error.into()),
+        }
+    }
+}
+
+/// Common sender backend interface used by NanaVTS.
+pub trait SpoutSenderBackend {
+    /// Return the current backend status.
+    fn status(&self) -> SpoutStatus;
+    /// Resize or recreate the sender surface for the requested format.
+    fn resize_or_recreate(&mut self, width: u32, height: u32, format: SpoutFormat) -> Result<()>;
+    /// Publish one frame.
+    fn publish(&mut self, frame: SpoutFrameRef<'_>) -> Result<()>;
+    /// Release the native sender resources.
+    fn release(&mut self);
+}
+
+/// Returns the linked Spout SDK version string on Windows, or the vendored pin elsewhere.
 pub fn sdk_version() -> String {
-    util::read_cstr_buf(|buf, len| unsafe { spout2_sys::spout_get_sdk_version(buf, len) })
+    #[cfg(all(windows, any(feature = "cpu-dx11", feature = "gpu-dx12-experimental")))]
+    {
+        util::read_cstr_buf(|buf, len| unsafe {
+            nanavts_spout_sys::spout_get_sdk_version(buf, len)
+        })
+    }
+    #[cfg(not(all(windows, any(feature = "cpu-dx11", feature = "gpu-dx12-experimental"))))]
+    {
+        SPOUT_SDK_VERSION.to_string()
+    }
+}
+
+/// Report static backend availability for the current platform and compiled features.
+pub fn backend_status(kind: SpoutBackendKind) -> SpoutStatus {
+    match kind {
+        SpoutBackendKind::CpuDx11 => {
+            #[cfg(all(windows, feature = "cpu-dx11"))]
+            {
+                SpoutStatus::available(kind)
+            }
+            #[cfg(not(all(windows, feature = "cpu-dx11")))]
+            {
+                SpoutStatus::unavailable(kind, "CPU DX11 Spout backend is not available")
+            }
+        }
+        SpoutBackendKind::GpuDx12Experimental => {
+            #[cfg(all(windows, feature = "gpu-dx12-experimental"))]
+            {
+                SpoutStatus::available(kind)
+            }
+            #[cfg(not(all(windows, feature = "gpu-dx12-experimental")))]
+            {
+                SpoutStatus::unavailable(kind, "experimental DX12 Spout backend is not available")
+            }
+        }
+    }
 }

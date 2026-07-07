@@ -1,11 +1,10 @@
 [package]
-name = "spout2-sys"
+name = "nanavts-spout-sys"
 version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 license = "BSD-2-Clause"
-description = "Raw FFI bindings to the Spout2 SDK via a hand-written C++ shim (Windows only)"
-documentation = "https://docs.rs/spout2-sys/latest/spout2_sys/"
+description = "Internal NanaVTS Spout sender FFI bindings via a hand-written C++ shim"
 links = "spout2"
 build = "build.rs"
 include = [
@@ -24,13 +23,12 @@ include = [
 ]
 
 [lib]
-name = "spout2_sys"
+name = "nanavts_spout_sys"
 
 [features]
-default = ["dx", "gl"]
-dx = []
-dx12 = []
-gl = []
+default = ["cpu-dx11"]
+cpu-dx11 = []
+gpu-dx12-experimental = []
 
 [build-dependencies]
 cc = "1"

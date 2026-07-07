@@ -1,9 +1,8 @@
-//! Build script for `spout2-sys`.
+//! Build script for `nanavts-spout-sys`.
 //!
-//! Compiles the vendored Spout2 SDK (the SpoutGL core sources, plus the SpoutDX
-//! class when the `dx` feature is enabled) together with our flat C++ shim
-//! (`shim/spout_shim.cpp`) into a single static library `spout2`, and emits the
-//! Windows system-library link directives.
+//! Compiles the vendored Spout2 SDK pieces needed by NanaVTS sender output
+//! together with our flat C++ shim (`shim/spout_shim.cpp`) into a single static
+//! library `spout2`, and emits the Windows system-library link directives.
 //!
 //! ## CRT linkage (important)
 //!
@@ -33,7 +32,7 @@ fn main() {
     let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
     if target_env != "msvc" {
         panic!(
-            "spout2-sys requires the MSVC toolchain (a *-pc-windows-msvc target); \
+            "nanavts-spout-sys requires the MSVC toolchain (a *-pc-windows-msvc target); \
              found target_env = {target_env:?}. The vendored Spout2 C++ uses \
              MSVC-only facilities (strncpy_s, #pragma comment(lib, ...), <direct.h>)."
         );
@@ -47,20 +46,40 @@ fn main() {
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     if target_arch == "aarch64" {
         panic!(
-            "spout2-sys does not support Windows on ARM (aarch64): the vendored \
+            "nanavts-spout-sys does not support Windows on ARM (aarch64): the vendored \
              Spout SSE2 SIMD sources require the upstream `sse2neon` shim, which \
              this build does not configure. Use an x86_64 (x64) target."
         );
     }
 
-    let dx = std::env::var_os("CARGO_FEATURE_DX").is_some();
-    let dx12 = std::env::var_os("CARGO_FEATURE_DX12").is_some();
-    let gl = std::env::var_os("CARGO_FEATURE_GL").is_some();
+    let cpu_dx11 = std::env::var_os("CARGO_FEATURE_CPU_DX11").is_some();
+    let gpu_dx12 = std::env::var_os("CARGO_FEATURE_GPU_DX12_EXPERIMENTAL").is_some();
+
+    if !cpu_dx11 && !gpu_dx12 {
+        return;
+    }
 
     let sdk = PathBuf::from("vendor/Spout2/SPOUTSDK");
     let gl_dir = sdk.join("SpoutGL");
     let dx_dir = sdk.join("SpoutDirectX/SpoutDX");
     let dx12_dir = dx_dir.join("SpoutDX12");
+
+    let required = [
+        gl_dir.join("Spout.cpp"),
+        gl_dir.join("SpoutDirectX.cpp"),
+        dx_dir.join("SpoutDX.cpp"),
+    ];
+    if let Some(missing) = required.iter().find(|p| !p.exists()) {
+        panic!(
+            "vendored Spout2 SDK source is missing: {}. Run `git submodule update --init --recursive` from the repository root before building.",
+            missing.display()
+        );
+    }
+    if gpu_dx12 && !dx12_dir.join("SpoutDX12.cpp").exists() {
+        panic!(
+            "vendored Spout2 DX12 source is missing. Run `git submodule update --init --recursive` from the repository root before building."
+        );
+    }
 
     let mut build = cc::Build::new();
     build
@@ -72,7 +91,8 @@ fn main() {
         .include(&dx_dir) // for SpoutDX.h (resolved via __has_include in the DX shim)
         .include("shim");
 
-    // The 11 core SpoutGL sources. Both backends depend on these; compile once.
+    // SpoutDX depends on the Spout core sources. They remain a private native
+    // implementation detail; NanaVTS does not expose an OpenGL backend.
     for f in [
         "Spout.cpp",
         "SpoutCopy.cpp",
@@ -89,21 +109,16 @@ fn main() {
         build.file(gl_dir.join(f));
     }
 
-    // The DirectX 11 backend adds the `spoutDX` class. The DX12 backend inherits
-    // from spoutDX and also requires SpoutDX.cpp.
-    if dx || dx12 {
+    if cpu_dx11 || gpu_dx12 {
         build.file(dx_dir.join("SpoutDX.cpp"));
     }
-    if dx {
-        build.define("SPOUT2_SHIM_DX", None);
+    if cpu_dx11 {
+        build.define("NANAVTS_SPOUT_CPU_DX11", None);
     }
-    if dx12 {
+    if gpu_dx12 {
         build.file(dx12_dir.join("SpoutDX12.cpp"));
         build.include(&dx12_dir);
-        build.define("SPOUT2_SHIM_DX12", None);
-    }
-    if gl {
-        build.define("SPOUT2_SHIM_GL", None);
+        build.define("NANAVTS_SPOUT_GPU_DX12", None);
     }
 
     build.file("shim/spout_shim.cpp");

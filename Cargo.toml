@@ -3,28 +3,26 @@ members = [".", "sys"]
 resolver = "3"
 
 [package]
-name = "spout2-rs"
+name = "nanavts-spout"
 version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 license = "BSD-2-Clause"
-description = "Safe Windows bindings to Spout2 (DirectX 11/12 + OpenGL GPU/CPU texture sharing)"
+description = "NanaVTS-focused Spout sender output backend"
 readme = "README.md"
-documentation = "https://docs.rs/spout2/latest/spout2/"
-keywords = ["spout", "spout2", "directx", "directx12", "opengl"]
+keywords = ["nanavts", "spout", "spout2", "directx", "directx12"]
 categories = ["multimedia", "external-ffi-bindings"]
 
 [lib]
-name = "spout2"
+name = "nanavts_spout"
 
 [features]
-default = ["dx", "gl"]
-dx = ["spout2-sys/dx"]
-dx12 = ["spout2-sys/dx12"]
-gl = ["spout2-sys/gl"]
+default = ["cpu-dx11"]
+cpu-dx11 = ["nanavts-spout-sys/cpu-dx11"]
+gpu-dx12-experimental = ["nanavts-spout-sys/gpu-dx12-experimental"]
 
 [dependencies]
-spout2-sys = { path = "sys", version = "0.1.1", default-features = false }
+nanavts-spout-sys = { path = "sys", version = "0.1.1", default-features = false }
 
 [target.'cfg(windows)'.dev-dependencies]
 windows = { version = "0.61", features = [
@@ -38,39 +36,8 @@ windows = { version = "0.61", features = [
 ] }
 
 [[example]]
-name = "dx_sender"
-required-features = ["dx"]
-
-[[example]]
-name = "dx_receiver"
-required-features = ["dx"]
-
-[[example]]
-name = "dx12_sender"
-required-features = ["dx12"]
-
-[[example]]
-name = "dx12_receiver"
-required-features = ["dx12"]
-
-[[example]]
-name = "dx12_gpu_sender"
-required-features = ["dx12"]
-
-[[example]]
-name = "dx12_gpu_receiver"
-required-features = ["dx12"]
-
-[[example]]
-name = "gl_sender"
-required-features = ["gl"]
-
-[[example]]
-name = "gl_receiver"
-required-features = ["gl"]
-
-[[example]]
-name = "list_senders"
+name = "cpu_dx11_sender"
+required-features = ["cpu-dx11"]
 
 [package.metadata.docs.rs]
 # Build docs for the real (Windows) target so the full API is documented.
