@@ -16,11 +16,41 @@ pub type ID3D12CommandQueue = c_void;
 pub struct GpuDx12ExperimentalSender {
     #[cfg(windows)]
     raw: *mut nanavts_spout_sys::spout_dx12_t,
+    #[cfg(windows)]
+    wrapped: Option<Dx12WrappedResource>,
     released: bool,
     width: Option<u32>,
     height: Option<u32>,
     format: SpoutFormat,
     last_error: Option<String>,
+}
+
+#[cfg(windows)]
+struct Dx12WrappedResource {
+    resource: *mut c_void,
+    initial_state: u32,
+    width: Option<u32>,
+    height: Option<u32>,
+    format: SpoutFormat,
+    wrapped11: *mut c_void,
+}
+
+#[cfg(windows)]
+impl Dx12WrappedResource {
+    fn matches(
+        &self,
+        resource: *mut c_void,
+        initial_state: u32,
+        width: Option<u32>,
+        height: Option<u32>,
+        format: SpoutFormat,
+    ) -> bool {
+        self.resource == resource
+            && self.initial_state == initial_state
+            && self.width == width
+            && self.height == height
+            && self.format == format
+    }
 }
 
 impl GpuDx12ExperimentalSender {
@@ -73,6 +103,7 @@ impl GpuDx12ExperimentalSender {
                 );
                 Ok(Self {
                     raw,
+                    wrapped: None,
                     released: false,
                     width: None,
                     height: None,
@@ -86,6 +117,59 @@ impl GpuDx12ExperimentalSender {
     fn set_error(&mut self, error: SpoutOutputError) -> SpoutOutputError {
         self.last_error = Some(error.to_string());
         error
+    }
+
+    #[cfg(windows)]
+    unsafe fn clear_wrapped_resource(&mut self) {
+        if let Some(wrapped) = self.wrapped.take() {
+            unsafe { nanavts_spout_sys::spout_dx12_release_wrapped_resource(wrapped.wrapped11) };
+        }
+    }
+
+    #[cfg(windows)]
+    unsafe fn ensure_wrapped_resource(
+        &mut self,
+        resource: *mut c_void,
+        initial_state: u32,
+    ) -> Result<*mut c_void> {
+        if self.wrapped.as_ref().is_some_and(|wrapped| {
+            wrapped.matches(
+                resource,
+                initial_state,
+                self.width,
+                self.height,
+                self.format,
+            )
+        }) {
+            return Ok(self
+                .wrapped
+                .as_ref()
+                .expect("wrapped resource exists")
+                .wrapped11);
+        }
+
+        unsafe { self.clear_wrapped_resource() };
+        let mut wrapped11 = core::ptr::null_mut();
+        let wrapped_ok = unsafe {
+            nanavts_spout_sys::spout_dx12_wrap_resource(
+                self.raw,
+                resource,
+                initial_state,
+                &mut wrapped11,
+            )
+        };
+        if wrapped_ok == 0 || wrapped11.is_null() {
+            return Err(self.set_error(SpoutOutputError::DeviceInteropUnavailable));
+        }
+        self.wrapped = Some(Dx12WrappedResource {
+            resource,
+            initial_state,
+            width: self.width,
+            height: self.height,
+            format: self.format,
+            wrapped11,
+        });
+        Ok(wrapped11)
     }
 }
 
@@ -141,6 +225,10 @@ impl SpoutSenderBackend for GpuDx12ExperimentalSender {
         if width == 0 || height == 0 {
             return Err(self.set_error(SpoutOutputError::InvalidFrameDimensions { width, height }));
         }
+        #[cfg(windows)]
+        if self.width != Some(width) || self.height != Some(height) || self.format != format {
+            unsafe { self.clear_wrapped_resource() };
+        }
         self.width = Some(width);
         self.height = Some(height);
         self.format = format;
@@ -177,18 +265,8 @@ impl SpoutSenderBackend for GpuDx12ExperimentalSender {
         }
         #[cfg(windows)]
         unsafe {
-            let mut wrapped = core::ptr::null_mut();
-            let wrapped_ok = nanavts_spout_sys::spout_dx12_wrap_resource(
-                self.raw,
-                resource,
-                initial_state,
-                &mut wrapped,
-            );
-            if wrapped_ok == 0 || wrapped.is_null() {
-                return Err(self.set_error(SpoutOutputError::DeviceInteropUnavailable));
-            }
+            let wrapped = self.ensure_wrapped_resource(resource, initial_state)?;
             let send_ok = nanavts_spout_sys::spout_dx12_send_wrapped_resource(self.raw, wrapped);
-            nanavts_spout_sys::spout_dx12_release_wrapped_resource(wrapped);
             if send_ok == 0 {
                 return Err(self.set_error(SpoutOutputError::PublishFailed));
             }
@@ -203,6 +281,7 @@ impl SpoutSenderBackend for GpuDx12ExperimentalSender {
         }
         #[cfg(windows)]
         unsafe {
+            self.clear_wrapped_resource();
             nanavts_spout_sys::spout_dx12_release_sender(self.raw);
         }
         self.released = true;
@@ -224,5 +303,59 @@ impl core::fmt::Debug for GpuDx12ExperimentalSender {
         f.debug_struct("GpuDx12ExperimentalSender")
             .field("status", &self.status())
             .finish()
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrapped_resource_cache_key_includes_resource_state_size_and_format() {
+        let resource = 0x1000usize as *mut c_void;
+        let wrapped = Dx12WrappedResource {
+            resource,
+            initial_state: 4,
+            width: Some(1280),
+            height: Some(720),
+            format: SpoutFormat::B8G8R8A8_UNORM,
+            wrapped11: 0x2000usize as *mut c_void,
+        };
+
+        assert!(wrapped.matches(
+            resource,
+            4,
+            Some(1280),
+            Some(720),
+            SpoutFormat::B8G8R8A8_UNORM
+        ));
+        assert!(!wrapped.matches(
+            0x3000usize as *mut c_void,
+            4,
+            Some(1280),
+            Some(720),
+            SpoutFormat::B8G8R8A8_UNORM
+        ));
+        assert!(!wrapped.matches(
+            resource,
+            8,
+            Some(1280),
+            Some(720),
+            SpoutFormat::B8G8R8A8_UNORM
+        ));
+        assert!(!wrapped.matches(
+            resource,
+            4,
+            Some(1920),
+            Some(720),
+            SpoutFormat::B8G8R8A8_UNORM
+        ));
+        assert!(!wrapped.matches(
+            resource,
+            4,
+            Some(1280),
+            Some(720),
+            SpoutFormat::R8G8B8A8_UNORM
+        ));
     }
 }
