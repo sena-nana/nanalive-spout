@@ -51,22 +51,64 @@ fn main() -> nanavts_spout::Result<()> {
 
 ## Experimental DX12
 
-The DX12 backend is only for GPU resource output experiments. It uses Spout's
-D3D11On12 bridge and must be constructed from an existing D3D12 device and
-command queue:
+The DX12 backend is only for GPU resource output experiments. It remains
+Spout-compatible by using Spout's D3D11On12 bridge. It avoids CPU pixel upload,
+but it is not a pure DX12 zero-copy protocol: each sent frame is still copied on
+the GPU into Spout's DX11 shared texture.
+
+The sender must be constructed from an existing D3D12 device and command queue:
 
 ```rust,no_run
-# use nanavts_spout::{GpuDx12ExperimentalSender, ID3D12CommandQueue, ID3D12Device};
-# unsafe fn demo(device: *mut ID3D12Device, queue: *mut ID3D12CommandQueue) -> nanavts_spout::Result<()> {
-let sender = GpuDx12ExperimentalSender::with_d3d12_device_and_queue(
+# use core::ffi::c_void;
+# use nanavts_spout::{
+#     GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue,
+#     ID3D12Device, SpoutFormat, SpoutFrameRef, SpoutSenderBackend,
+# };
+# unsafe fn demo(
+#     device: *mut ID3D12Device,
+#     queue: *mut ID3D12CommandQueue,
+#     resource: *mut c_void,
+# ) -> nanavts_spout::Result<()> {
+let mut sender = GpuDx12ExperimentalSender::with_d3d12_device_and_queue(
     "NanaVTS DX12",
     device,
     queue,
 )?;
-# let _ = sender;
+sender.resize_or_recreate(1280, 720, SpoutFormat::R8G8B8A8_UNORM)?;
+sender.set_publish_options(GpuDx12PublishOptions {
+    access_timeout_ms: 1,
+    collect_timing: false,
+});
+let report = sender.publish_report(SpoutFrameRef::Dx12Resource {
+    resource,
+    initial_state: 4,
+    final_state: 4,
+})?;
+# let _ = report;
 # Ok(())
 # }
 ```
+
+`publish_report` reports whether a frame was actually sent. `Sent` means the
+native shim copied to Spout's shared texture and signaled a new frame.
+`SkippedAccessTimeout` means Spout texture access was not available within the
+configured timeout, so NanaVTS can observe a skipped Spout frame instead of
+stalling rendering.
+
+The default DX12 publish policy is:
+
+```rust
+# use nanavts_spout::GpuDx12PublishOptions;
+GpuDx12PublishOptions {
+    access_timeout_ms: 1,
+    collect_timing: false,
+}
+```
+
+Recommended NanaVTS policy is to prioritize display/render work. Spout publish
+should skip rather than stall when texture access cannot be acquired within the
+frame budget. Use a longer Spout-priority timeout only behind an explicit user
+setting.
 
 Enable it with:
 
@@ -83,7 +125,7 @@ GPU DX12 sender path on Windows:
 cargo run --example spout_perf --features gpu-dx12-experimental -- --mode both --frames 600 --warmup 60
 ```
 
-It reports per-frame publish-call latency (`publish(...)` entry to return),
+It reports per-frame publish-call latency (`publish_report(...)` entry to return),
 process CPU usage, process GPU Engine usage, Spout FPS, and frame counters.
 GPU usage depends on the Windows GPU Engine performance counters; on systems
 where those counters are unavailable, the tool reports `n/a` with the reason
@@ -105,6 +147,8 @@ Useful options:
 cargo check --workspace --no-default-features
 cargo check --workspace --features cpu-dx11
 cargo check --workspace --no-default-features --features gpu-dx12-experimental
+cargo test --workspace --no-default-features
+cargo test --workspace --features cpu-dx11
 ```
 
 ## License

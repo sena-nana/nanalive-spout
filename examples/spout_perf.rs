@@ -19,7 +19,8 @@ fn main() {
 #[cfg(all(windows, feature = "cpu-dx11", feature = "gpu-dx12-experimental"))]
 mod perf {
     use nanavts_spout::{
-        CpuDx11Sender, GpuDx12ExperimentalSender, SpoutFormat, SpoutFrameRef, SpoutSenderBackend,
+        CpuDx11Sender, GpuDx12ExperimentalSender, GpuDx12PublishOptions, SpoutFormat,
+        SpoutFrameRef, SpoutPublishStatus, SpoutSenderBackend,
     };
     use std::error::Error;
     use std::ffi::c_void;
@@ -243,13 +244,15 @@ mod perf {
             )?
         };
         sender.resize_or_recreate(config.width, config.height, SpoutFormat::R8G8B8A8_UNORM)?;
+        sender.set_publish_options(GpuDx12PublishOptions::default());
 
         let mut recorder = Recorder::new("gpu-dx12", config);
         for frame in 0..config.warmup {
             unsafe { dx.clear(frame)? };
-            let _ = sender.publish(SpoutFrameRef::Dx12Resource {
+            let _ = sender.publish_report(SpoutFrameRef::Dx12Resource {
                 resource: dx.texture.as_raw() as *mut c_void,
                 initial_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
+                final_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
             });
         }
         recorder.reset_window();
@@ -257,12 +260,16 @@ mod perf {
         for frame in 0..config.frames {
             unsafe { dx.clear(frame + config.warmup)? };
             let start = Instant::now();
-            let result = sender.publish(SpoutFrameRef::Dx12Resource {
+            let result = sender.publish_report(SpoutFrameRef::Dx12Resource {
                 resource: dx.texture.as_raw() as *mut c_void,
                 initial_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
+                final_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
             });
             let elapsed = start.elapsed();
-            recorder.record(elapsed, result.is_ok());
+            recorder.record(
+                elapsed,
+                matches!(result, Ok(report) if report.status == SpoutPublishStatus::Sent),
+            );
         }
 
         Ok(recorder.finish(sender.status()))

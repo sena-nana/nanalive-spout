@@ -35,13 +35,32 @@ long         spout_dx_get_frame(spout_dx_t* h);
 
 typedef struct spout_dx12_t spout_dx12_t;
 
+typedef struct spout_dx12_send_result_t {
+    int status;
+    long frame;
+    unsigned long long waited_us;
+    unsigned long long access_wait_us;
+    unsigned long long submit_us;
+    unsigned long long flush_us;
+} spout_dx12_send_result_t;
+
 spout_dx12_t* spout_dx12_create(void);
 void          spout_dx12_destroy(spout_dx12_t* h);
 int           spout_dx12_open_directx12(spout_dx12_t* h, void* device, void** command_queue);
 void*         spout_dx12_get_d3d12_device(spout_dx12_t* h);
 int           spout_dx12_wrap_resource(spout_dx12_t* h, void* d3d12_resource,
                                        unsigned int initial_state, void** out_wrapped11);
+int           spout_dx12_wrap_resource_ex(spout_dx12_t* h, void* d3d12_resource,
+                                          unsigned int initial_state,
+                                          unsigned int final_state,
+                                          void** out_wrapped11);
 int           spout_dx12_send_wrapped_resource(spout_dx12_t* h, void* wrapped11);
+int           spout_dx12_send_wrapped_resource_fast(spout_dx12_t* h, void* wrapped11,
+                                                    unsigned int width, unsigned int height,
+                                                    unsigned int dxgi_format,
+                                                    unsigned int access_timeout_ms,
+                                                    unsigned int collect_timing,
+                                                    spout_dx12_send_result_t* out_result);
 void          spout_dx12_release_wrapped_resource(void* wrapped11);
 int           spout_dx12_set_sender_name(spout_dx12_t* h, const char* name);
 void          spout_dx12_set_sender_format(spout_dx12_t* h, unsigned int dxgi_format);

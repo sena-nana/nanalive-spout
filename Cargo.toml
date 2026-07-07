@@ -44,6 +44,10 @@ required-features = ["cpu-dx11"]
 name = "spout_perf"
 required-features = ["cpu-dx11", "gpu-dx12-experimental"]
 
+[[example]]
+name = "gpu_dx12_sender"
+required-features = ["gpu-dx12-experimental"]
+
 [package.metadata.docs.rs]
 # Build docs for the real (Windows) target so the full API is documented.
 # The build script skips the native compile when DOCS_RS is set.

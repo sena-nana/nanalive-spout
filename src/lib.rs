@@ -20,7 +20,9 @@ pub use error::{Result, SpoutOutputError};
 #[cfg(feature = "cpu-dx11")]
 pub use cpu_dx11::CpuDx11Sender;
 #[cfg(feature = "gpu-dx12-experimental")]
-pub use gpu_dx12::{GpuDx12ExperimentalSender, ID3D12CommandQueue, ID3D12Device};
+pub use gpu_dx12::{
+    GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue, ID3D12Device,
+};
 
 /// The Spout SDK version this crate is built against.
 pub use nanavts_spout_sys::SPOUT_SDK_VERSION;
@@ -92,7 +94,52 @@ pub enum SpoutFrameRef<'a> {
         resource: *mut c_void,
         /// `D3D12_RESOURCE_STATES` value describing the current resource state.
         initial_state: u32,
+        /// `D3D12_RESOURCE_STATES` value to transition to after D3D11On12 release.
+        final_state: u32,
     },
+}
+
+/// Per-frame publish outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpoutPublishStatus {
+    /// The native backend submitted and signaled a new Spout frame.
+    Sent,
+    /// The Spout shared texture access mutex was not acquired before timeout.
+    SkippedAccessTimeout,
+    /// The backend is not available or has already been released.
+    BackendUnavailable,
+    /// The provided frame does not match this backend or is otherwise invalid.
+    InvalidFrame,
+    /// The backend attempted to publish and failed.
+    Failed,
+}
+
+/// Optional coarse DX12 publish timing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpoutDx12Timing {
+    /// Time spent wrapping the D3D12 resource when the cache missed.
+    pub wrap_us: u64,
+    /// Time spent waiting for Spout shared texture access.
+    pub access_wait_us: u64,
+    /// Time spent submitting the D3D11 copy and D3D11On12 release.
+    pub submit_us: u64,
+    /// Time spent flushing the D3D11On12 context.
+    pub flush_us: u64,
+    /// End-to-end `publish_report` time.
+    pub total_us: u64,
+}
+
+/// Per-frame publish result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpoutPublishReport {
+    /// Publish outcome.
+    pub status: SpoutPublishStatus,
+    /// Spout frame counter after publishing, when known.
+    pub frame: Option<i64>,
+    /// Time spent waiting for Spout shared texture access, when reported.
+    pub waited_us: Option<u64>,
+    /// Optional DX12 timing diagnostics.
+    pub timing: Option<SpoutDx12Timing>,
 }
 
 /// Current Spout output state.
@@ -158,6 +205,16 @@ pub trait SpoutSenderBackend {
     fn resize_or_recreate(&mut self, width: u32, height: u32, format: SpoutFormat) -> Result<()>;
     /// Publish one frame.
     fn publish(&mut self, frame: SpoutFrameRef<'_>) -> Result<()>;
+    /// Publish one frame and return an explicit outcome report.
+    fn publish_report(&mut self, frame: SpoutFrameRef<'_>) -> Result<SpoutPublishReport> {
+        self.publish(frame)?;
+        Ok(SpoutPublishReport {
+            status: SpoutPublishStatus::Sent,
+            frame: self.status().frame,
+            waited_us: None,
+            timing: None,
+        })
+    }
     /// Release the native sender resources.
     fn release(&mut self);
 }

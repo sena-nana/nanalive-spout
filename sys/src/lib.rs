@@ -55,6 +55,18 @@ mod ffi {
     }
 
     #[cfg(feature = "gpu-dx12-experimental")]
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct spout_dx12_send_result_t {
+        pub status: c_int,
+        pub frame: c_long,
+        pub waited_us: u64,
+        pub access_wait_us: u64,
+        pub submit_us: u64,
+        pub flush_us: u64,
+    }
+
+    #[cfg(feature = "gpu-dx12-experimental")]
     unsafe extern "C" {
         pub fn spout_dx12_create() -> *mut spout_dx12_t;
         pub fn spout_dx12_destroy(h: *mut spout_dx12_t);
@@ -70,9 +82,26 @@ mod ffi {
             initial_state: c_uint,
             out_wrapped11: *mut *mut c_void,
         ) -> c_int;
+        pub fn spout_dx12_wrap_resource_ex(
+            h: *mut spout_dx12_t,
+            d3d12_resource: *mut c_void,
+            initial_state: c_uint,
+            final_state: c_uint,
+            out_wrapped11: *mut *mut c_void,
+        ) -> c_int;
         pub fn spout_dx12_send_wrapped_resource(
             h: *mut spout_dx12_t,
             wrapped11: *mut c_void,
+        ) -> c_int;
+        pub fn spout_dx12_send_wrapped_resource_fast(
+            h: *mut spout_dx12_t,
+            wrapped11: *mut c_void,
+            width: c_uint,
+            height: c_uint,
+            dxgi_format: c_uint,
+            access_timeout_ms: c_uint,
+            collect_timing: c_uint,
+            out_result: *mut spout_dx12_send_result_t,
         ) -> c_int;
         pub fn spout_dx12_release_wrapped_resource(wrapped11: *mut c_void);
         pub fn spout_dx12_set_sender_name(h: *mut spout_dx12_t, name: *const c_char) -> c_int;
