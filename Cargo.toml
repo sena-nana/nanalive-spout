@@ -3,26 +3,26 @@ members = [".", "sys"]
 resolver = "3"
 
 [package]
-name = "nanavts-spout"
+name = "NANALIVE-spout"
 version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 license = "BSD-2-Clause"
-description = "NanaVTS-focused Spout sender output backend"
+description = "NANALIVE-focused Spout sender output backend"
 readme = "README.md"
-keywords = ["nanavts", "spout", "spout2", "directx", "directx12"]
+keywords = ["NANALIVE", "spout", "spout2", "directx", "directx12"]
 categories = ["multimedia", "external-ffi-bindings"]
 
 [lib]
-name = "nanavts_spout"
+name = "NANALIVE_spout"
 
 [features]
 default = ["cpu-dx11"]
-cpu-dx11 = ["nanavts-spout-sys/cpu-dx11"]
-gpu-dx12-experimental = ["nanavts-spout-sys/gpu-dx12-experimental"]
+cpu-dx11 = ["NANALIVE-spout-sys/cpu-dx11"]
+gpu-dx12-experimental = ["NANALIVE-spout-sys/gpu-dx12-experimental"]
 
 [dependencies]
-nanavts-spout-sys = { path = "sys", version = "0.1.1", default-features = false }
+NANALIVE-spout-sys = { path = "sys", version = "0.1.1", default-features = false }
 
 [target.'cfg(windows)'.dev-dependencies]
 windows = { version = "0.61", features = [

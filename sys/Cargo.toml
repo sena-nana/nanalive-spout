@@ -1,10 +1,10 @@
 [package]
-name = "nanavts-spout-sys"
+name = "NANALIVE-spout-sys"
 version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 license = "BSD-2-Clause"
-description = "Internal NanaVTS Spout sender FFI bindings via a hand-written C++ shim"
+description = "Internal NANALIVE Spout sender FFI bindings via a hand-written C++ shim"
 links = "spout2"
 build = "build.rs"
 include = [
@@ -23,7 +23,7 @@ include = [
 ]
 
 [lib]
-name = "nanavts_spout_sys"
+name = "NANALIVE_spout_sys"
 
 [features]
 default = ["cpu-dx11"]

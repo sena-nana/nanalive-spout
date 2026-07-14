@@ -1,14 +1,14 @@
 //! Ignored runtime tests that exercise real Spout sender publication.
 #![cfg(all(windows, feature = "cpu-dx11"))]
 
-use nanavts_spout::{CpuDx11Sender, SpoutFrameRef, SpoutSenderBackend};
+use NANALIVE_spout::{CpuDx11Sender, SpoutFrameRef, SpoutSenderBackend};
 
 #[test]
 #[ignore = "requires a Windows GPU/driver stack and a real Spout sender publish"]
-fn cpu_dx11_sender_publishes_one_frame() -> nanavts_spout::Result<()> {
+fn cpu_dx11_sender_publishes_one_frame() -> NANALIVE_spout::Result<()> {
     let (w, h) = (16u32, 16u32);
     let pixels = vec![0x7fu8; (w * h * 4) as usize];
-    let mut sender = CpuDx11Sender::new("nanavts-runtime-test")?;
+    let mut sender = CpuDx11Sender::new("NANALIVE-runtime-test")?;
 
     sender.publish(SpoutFrameRef::CpuPixels {
         pixels: &pixels,

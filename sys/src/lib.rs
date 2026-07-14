@@ -1,7 +1,7 @@
-//! Internal raw FFI bindings for NanaVTS Spout sender output.
+//! Internal raw FFI bindings for NANALIVE Spout sender output.
 //!
 //! This crate compiles the vendored Spout2 C++ sources together with a narrow
-//! `extern "C"` shim. The public NanaVTS-facing API lives in `nanavts-spout`.
+//! `extern "C"` shim. The public NANALIVE-facing API lives in `NANALIVE-spout`.
 #![allow(non_camel_case_types)]
 
 /// The Spout SDK version this crate is vendored against.

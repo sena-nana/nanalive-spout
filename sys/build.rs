@@ -1,6 +1,6 @@
-//! Build script for `nanavts-spout-sys`.
+//! Build script for `NANALIVE-spout-sys`.
 //!
-//! Compiles the vendored Spout2 SDK pieces needed by NanaVTS sender output
+//! Compiles the vendored Spout2 SDK pieces needed by NANALIVE sender output
 //! together with our flat C++ shim (`shim/spout_shim.cpp`) into a single static
 //! library `spout2`, and emits the Windows system-library link directives.
 //!
@@ -32,7 +32,7 @@ fn main() {
     let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
     if target_env != "msvc" {
         panic!(
-            "nanavts-spout-sys requires the MSVC toolchain (a *-pc-windows-msvc target); \
+            "NANALIVE-spout-sys requires the MSVC toolchain (a *-pc-windows-msvc target); \
              found target_env = {target_env:?}. The vendored Spout2 C++ uses \
              MSVC-only facilities (strncpy_s, #pragma comment(lib, ...), <direct.h>)."
         );
@@ -46,7 +46,7 @@ fn main() {
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     if target_arch == "aarch64" {
         panic!(
-            "nanavts-spout-sys does not support Windows on ARM (aarch64): the vendored \
+            "NANALIVE-spout-sys does not support Windows on ARM (aarch64): the vendored \
              Spout SSE2 SIMD sources require the upstream `sse2neon` shim, which \
              this build does not configure. Use an x86_64 (x64) target."
         );
@@ -92,7 +92,7 @@ fn main() {
         .include("shim");
 
     // SpoutDX depends on the Spout core sources. They remain a private native
-    // implementation detail; NanaVTS does not expose an OpenGL backend.
+    // implementation detail; NANALIVE does not expose an OpenGL backend.
     for f in [
         "Spout.cpp",
         "SpoutCopy.cpp",
@@ -113,12 +113,12 @@ fn main() {
         build.file(dx_dir.join("SpoutDX.cpp"));
     }
     if cpu_dx11 {
-        build.define("NANAVTS_SPOUT_CPU_DX11", None);
+        build.define("NANALIVE_SPOUT_CPU_DX11", None);
     }
     if gpu_dx12 {
         build.file(dx12_dir.join("SpoutDX12.cpp"));
         build.include(&dx12_dir);
-        build.define("NANAVTS_SPOUT_GPU_DX12", None);
+        build.define("NANALIVE_SPOUT_GPU_DX12", None);
     }
 
     build.file("shim/spout_shim.cpp");

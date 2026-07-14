@@ -1,8 +1,8 @@
 /*
- * Narrow C ABI for NanaVTS Spout sender output.
+ * Narrow C ABI for NANALIVE Spout sender output.
  */
-#ifndef NANAVTS_SPOUT_SHIM_H
-#define NANAVTS_SPOUT_SHIM_H
+#ifndef NANALIVE_SPOUT_SHIM_H
+#define NANALIVE_SPOUT_SHIM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,7 +10,7 @@ extern "C" {
 
 int spout_get_sdk_version(char* buf, int maxlen);
 
-#if defined(NANAVTS_SPOUT_CPU_DX11)
+#if defined(NANALIVE_SPOUT_CPU_DX11)
 
 typedef struct spout_dx_t spout_dx_t;
 
@@ -31,7 +31,7 @@ long         spout_dx_get_frame(spout_dx_t* h);
 
 #endif
 
-#if defined(NANAVTS_SPOUT_GPU_DX12)
+#if defined(NANALIVE_SPOUT_GPU_DX12)
 
 typedef struct spout_dx12_t spout_dx12_t;
 

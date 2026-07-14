@@ -1,7 +1,7 @@
 //! Compile-only DX12 sender API example.
 
 use core::ffi::c_void;
-use nanavts_spout::{
+use NANALIVE_spout::{
     GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue, ID3D12Device,
     SpoutFormat, SpoutFrameRef, SpoutSenderBackend,
 };
@@ -28,9 +28,9 @@ pub unsafe fn publish_existing_dx12_resource(
     height: u32,
     initial_state: u32,
     final_state: u32,
-) -> nanavts_spout::Result<nanavts_spout::SpoutPublishReport> {
+) -> NANALIVE_spout::Result<NANALIVE_spout::SpoutPublishReport> {
     let mut sender = unsafe {
-        GpuDx12ExperimentalSender::with_d3d12_device_and_queue("NanaVTS DX12", device, queue)?
+        GpuDx12ExperimentalSender::with_d3d12_device_and_queue("NANALIVE DX12", device, queue)?
     };
     sender.resize_or_recreate(width, height, SpoutFormat::R8G8B8A8_UNORM)?;
     sender.set_publish_options(GpuDx12PublishOptions {

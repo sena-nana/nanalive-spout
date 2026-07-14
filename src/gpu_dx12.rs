@@ -15,7 +15,7 @@ pub type ID3D12Device = c_void;
 /// Raw `ID3D12CommandQueue` COM pointer marker used by the experimental DX12 API.
 pub type ID3D12CommandQueue = c_void;
 
-/// DX12 publish policy for NanaVTS.
+/// DX12 publish policy for NANALIVE.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GpuDx12PublishOptions {
     /// Spout shared texture access timeout in milliseconds. `0` means no wait.
@@ -36,7 +36,7 @@ impl Default for GpuDx12PublishOptions {
 /// Experimental GPU Spout sender using Spout's D3D11On12 DX12 bridge.
 pub struct GpuDx12ExperimentalSender {
     #[cfg(windows)]
-    raw: *mut nanavts_spout_sys::spout_dx12_t,
+    raw: *mut NANALIVE_spout_sys::spout_dx12_t,
     wrapped: Dx12WrappedResourceCache,
     publish_options: GpuDx12PublishOptions,
     released: bool,
@@ -168,26 +168,26 @@ impl GpuDx12ExperimentalSender {
         {
             let cname = cstring(name)?;
             unsafe {
-                let raw = nanavts_spout_sys::spout_dx12_create();
+                let raw = NANALIVE_spout_sys::spout_dx12_create();
                 if raw.is_null() {
                     return Err(SpoutOutputError::BackendUnavailable);
                 }
                 let mut queue_ptr = queue.cast::<c_void>();
-                if nanavts_spout_sys::spout_dx12_open_directx12(
+                if NANALIVE_spout_sys::spout_dx12_open_directx12(
                     raw,
                     device.cast::<c_void>(),
                     &mut queue_ptr,
                 ) == 0
-                    || nanavts_spout_sys::spout_dx12_get_d3d12_device(raw).is_null()
+                    || NANALIVE_spout_sys::spout_dx12_get_d3d12_device(raw).is_null()
                 {
-                    nanavts_spout_sys::spout_dx12_destroy(raw);
+                    NANALIVE_spout_sys::spout_dx12_destroy(raw);
                     return Err(SpoutOutputError::DeviceInteropUnavailable);
                 }
-                if nanavts_spout_sys::spout_dx12_set_sender_name(raw, cname.as_ptr()) == 0 {
-                    nanavts_spout_sys::spout_dx12_destroy(raw);
+                if NANALIVE_spout_sys::spout_dx12_set_sender_name(raw, cname.as_ptr()) == 0 {
+                    NANALIVE_spout_sys::spout_dx12_destroy(raw);
                     return Err(SpoutOutputError::BackendUnavailable);
                 }
-                nanavts_spout_sys::spout_dx12_set_sender_format(
+                NANALIVE_spout_sys::spout_dx12_set_sender_format(
                     raw,
                     SpoutFormat::default().dxgi_format(),
                 );
@@ -244,7 +244,7 @@ impl GpuDx12ExperimentalSender {
     #[cfg(windows)]
     unsafe fn release_wrapped_entries(&mut self) {
         for wrapped in self.wrapped.clear() {
-            unsafe { nanavts_spout_sys::spout_dx12_release_wrapped_resource(wrapped.wrapped11) };
+            unsafe { NANALIVE_spout_sys::spout_dx12_release_wrapped_resource(wrapped.wrapped11) };
         }
     }
 
@@ -273,7 +273,7 @@ impl GpuDx12ExperimentalSender {
         let wrap_start = collect_timing.then(Instant::now);
         let mut wrapped11 = core::ptr::null_mut();
         let wrapped_ok = unsafe {
-            nanavts_spout_sys::spout_dx12_wrap_resource_ex(
+            NANALIVE_spout_sys::spout_dx12_wrap_resource_ex(
                 self.raw,
                 resource,
                 initial_state,
@@ -296,7 +296,7 @@ impl GpuDx12ExperimentalSender {
             wrapped11,
         });
         if let Some(evicted) = evicted {
-            unsafe { nanavts_spout_sys::spout_dx12_release_wrapped_resource(evicted.wrapped11) };
+            unsafe { NANALIVE_spout_sys::spout_dx12_release_wrapped_resource(evicted.wrapped11) };
         }
 
         Ok(WrappedResourceHandle { wrapped11, wrap_us })
@@ -317,29 +317,29 @@ impl SpoutSenderBackend for GpuDx12ExperimentalSender {
         #[cfg(windows)]
         unsafe {
             let active =
-                !self.released && nanavts_spout_sys::spout_dx12_is_initialized(self.raw) != 0;
+                !self.released && NANALIVE_spout_sys::spout_dx12_is_initialized(self.raw) != 0;
             SpoutStatus {
                 available: true,
                 enabled: !self.released,
                 active,
                 backend: Some(SpoutBackendKind::GpuDx12Experimental),
                 width: if active {
-                    Some(nanavts_spout_sys::spout_dx12_get_width(self.raw))
+                    Some(NANALIVE_spout_sys::spout_dx12_get_width(self.raw))
                 } else {
                     self.width
                 },
                 height: if active {
-                    Some(nanavts_spout_sys::spout_dx12_get_height(self.raw))
+                    Some(NANALIVE_spout_sys::spout_dx12_get_height(self.raw))
                 } else {
                     self.height
                 },
                 fps: if active {
-                    Some(nanavts_spout_sys::spout_dx12_get_fps(self.raw))
+                    Some(NANALIVE_spout_sys::spout_dx12_get_fps(self.raw))
                 } else {
                     None
                 },
                 frame: if active {
-                    Some(nanavts_spout_sys::spout_dx12_get_frame(self.raw) as i64)
+                    Some(NANALIVE_spout_sys::spout_dx12_get_frame(self.raw) as i64)
                 } else {
                     None
                 },
@@ -366,7 +366,7 @@ impl SpoutSenderBackend for GpuDx12ExperimentalSender {
         #[cfg(windows)]
         if !self.released {
             unsafe {
-                nanavts_spout_sys::spout_dx12_set_sender_format(self.raw, format.dxgi_format())
+                NANALIVE_spout_sys::spout_dx12_set_sender_format(self.raw, format.dxgi_format())
             };
         }
 
@@ -436,8 +436,8 @@ impl SpoutSenderBackend for GpuDx12ExperimentalSender {
                 final_state,
                 self.publish_options.collect_timing,
             )?;
-            let mut native = nanavts_spout_sys::spout_dx12_send_result_t::default();
-            let native_ok = nanavts_spout_sys::spout_dx12_send_wrapped_resource_fast(
+            let mut native = NANALIVE_spout_sys::spout_dx12_send_result_t::default();
+            let native_ok = NANALIVE_spout_sys::spout_dx12_send_wrapped_resource_fast(
                 self.raw,
                 wrapped.wrapped11,
                 self.width.expect("width checked above"),
@@ -480,7 +480,7 @@ impl SpoutSenderBackend for GpuDx12ExperimentalSender {
         unsafe {
             if !self.raw.is_null() {
                 self.release_wrapped_entries();
-                nanavts_spout_sys::spout_dx12_release_sender(self.raw);
+                NANALIVE_spout_sys::spout_dx12_release_sender(self.raw);
             }
         }
         self.released = true;
@@ -493,7 +493,7 @@ impl Drop for GpuDx12ExperimentalSender {
         #[cfg(windows)]
         unsafe {
             if !self.raw.is_null() {
-                nanavts_spout_sys::spout_dx12_destroy(self.raw);
+                NANALIVE_spout_sys::spout_dx12_destroy(self.raw);
             }
         }
     }

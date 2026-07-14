@@ -2,11 +2,11 @@
 
 #include "SpoutUtils.h"
 
-#if defined(NANAVTS_SPOUT_CPU_DX11)
+#if defined(NANALIVE_SPOUT_CPU_DX11)
 #include "SpoutDX.h"
 #endif
 
-#if defined(NANAVTS_SPOUT_GPU_DX12)
+#if defined(NANALIVE_SPOUT_GPU_DX12)
 #include "SpoutDX12.h"
 #endif
 
@@ -43,7 +43,7 @@ extern "C" int spout_get_sdk_version(char* buf, int maxlen) {
     }
 }
 
-#if defined(NANAVTS_SPOUT_CPU_DX11)
+#if defined(NANALIVE_SPOUT_CPU_DX11)
 
 namespace {
 inline spoutDX* as_dx(spout_dx_t* h) { return reinterpret_cast<spoutDX*>(h); }
@@ -157,12 +157,12 @@ long spout_dx_get_frame(spout_dx_t* h) {
 
 #endif
 
-#if defined(NANAVTS_SPOUT_GPU_DX12)
+#if defined(NANALIVE_SPOUT_GPU_DX12)
 
 namespace {
-constexpr int NANAVTS_DX12_SEND_FAILED = 0;
-constexpr int NANAVTS_DX12_SEND_SENT = 1;
-constexpr int NANAVTS_DX12_SEND_SKIPPED_ACCESS_TIMEOUT = 2;
+constexpr int NANALIVE_DX12_SEND_FAILED = 0;
+constexpr int NANALIVE_DX12_SEND_SENT = 1;
+constexpr int NANALIVE_DX12_SEND_SKIPPED_ACCESS_TIMEOUT = 2;
 
 using clock_type = std::chrono::steady_clock;
 
@@ -177,7 +177,7 @@ void init_send_result(spout_dx12_send_result_t* result)
     if (!result) {
         return;
     }
-    result->status = NANAVTS_DX12_SEND_FAILED;
+    result->status = NANALIVE_DX12_SEND_FAILED;
     result->frame = -1;
     result->waited_us = 0;
     result->access_wait_us = 0;
@@ -185,7 +185,7 @@ void init_send_result(spout_dx12_send_result_t* result)
     result->flush_us = 0;
 }
 
-class nanavts_spoutDX12 : public spoutDX12 {
+class NANALIVE_spoutDX12 : public spoutDX12 {
 public:
     bool WrapDX12ResourceEx(ID3D12Resource* pDX12Resource,
                             ID3D11Resource** ppWrapped11Resource,
@@ -209,7 +209,7 @@ public:
             IID_PPV_ARGS(ppWrapped11Resource));
 
         if (FAILED(hr)) {
-            SpoutLogError("nanavts_spoutDX12::WrapDX12ResourceEx failed (%d 0x%.7X)", LOWORD(hr), UINT(hr));
+            SpoutLogError("NANALIVE_spoutDX12::WrapDX12ResourceEx failed (%d 0x%.7X)", LOWORD(hr), UINT(hr));
             return false;
         }
         return true;
@@ -247,7 +247,7 @@ public:
             m_pd3dDeviceContext11->Flush();
             result->flush_us = collect_timing ? elapsed_us(flush_start) : 0;
             result->frame = GetFrame();
-            result->status = NANAVTS_DX12_SEND_SKIPPED_ACCESS_TIMEOUT;
+            result->status = NANALIVE_DX12_SEND_SKIPPED_ACCESS_TIMEOUT;
             return 1;
         }
 
@@ -263,7 +263,7 @@ public:
         frame.SetNewFrame();
         release_sender_access(access_mutex);
         result->frame = GetFrame();
-        result->status = NANAVTS_DX12_SEND_SENT;
+        result->status = NANALIVE_DX12_SEND_SENT;
         return 1;
     }
 
@@ -309,14 +309,14 @@ private:
     }
 };
 
-inline nanavts_spoutDX12* as_dx12(spout_dx12_t* h) { return reinterpret_cast<nanavts_spoutDX12*>(h); }
+inline NANALIVE_spoutDX12* as_dx12(spout_dx12_t* h) { return reinterpret_cast<NANALIVE_spoutDX12*>(h); }
 }
 
 extern "C" {
 
 spout_dx12_t* spout_dx12_create(void) {
     try {
-        return reinterpret_cast<spout_dx12_t*>(new nanavts_spoutDX12());
+        return reinterpret_cast<spout_dx12_t*>(new NANALIVE_spoutDX12());
     } catch (...) {
         return nullptr;
     }

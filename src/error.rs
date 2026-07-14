@@ -1,8 +1,8 @@
-//! Error type for NanaVTS Spout output.
+//! Error type for NANALIVE Spout output.
 
 use core::fmt;
 
-/// Errors returned by NanaVTS Spout output operations.
+/// Errors returned by NANALIVE Spout output operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpoutOutputError {
     /// The current target cannot run Spout output.

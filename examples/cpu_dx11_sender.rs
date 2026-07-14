@@ -1,18 +1,18 @@
-//! CPU DX11 sender example for the NanaVTS Spout output API.
+//! CPU DX11 sender example for the NANALIVE Spout output API.
 
 #[cfg(all(windows, feature = "cpu-dx11"))]
-fn main() -> nanavts_spout::Result<()> {
-    use nanavts_spout::{
+fn main() -> NANALIVE_spout::Result<()> {
+    use NANALIVE_spout::{
         CpuDx11Sender, SpoutFormat, SpoutFrameRef, SpoutSenderBackend, sdk_version,
     };
     use std::time::{Duration, Instant};
 
     let (w, h) = (640u32, 480u32);
-    let mut sender = CpuDx11Sender::new("NanaVTS CPU DX11")?;
+    let mut sender = CpuDx11Sender::new("NANALIVE CPU DX11")?;
     sender.resize_or_recreate(w, h, SpoutFormat::default())?;
 
     println!(
-        "Publishing NanaVTS CPU DX11 Spout frames (SDK {sdk}).",
+        "Publishing NANALIVE CPU DX11 Spout frames (SDK {sdk}).",
         sdk = sdk_version()
     );
 

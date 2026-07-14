@@ -18,7 +18,7 @@ fn main() {
 
 #[cfg(all(windows, feature = "cpu-dx11", feature = "gpu-dx12-experimental"))]
 mod perf {
-    use nanavts_spout::{
+    use NANALIVE_spout::{
         CpuDx11Sender, GpuDx12ExperimentalSender, GpuDx12PublishOptions, SpoutFormat,
         SpoutFrameRef, SpoutPublishStatus, SpoutSenderBackend,
     };
@@ -87,7 +87,7 @@ mod perf {
                 height: 720,
                 frames: 600,
                 warmup: 60,
-                name: "nanavts-spout-perf".to_string(),
+                name: "NANALIVE-spout-perf".to_string(),
                 csv: false,
             };
 
@@ -485,7 +485,7 @@ mod perf {
             self.gpu.sample();
         }
 
-        fn finish(mut self, status: nanavts_spout::SpoutStatus) -> PathSummary {
+        fn finish(mut self, status: NANALIVE_spout::SpoutStatus) -> PathSummary {
             self.cpu_end = ProcessCpuSnapshot::now();
             self.end = Instant::now();
             let latency = LatencyStats::from_durations(&self.latencies);

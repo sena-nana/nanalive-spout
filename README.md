@@ -1,7 +1,7 @@
-# nanavts-spout
+# NANALIVE-spout
 
-`nanavts-spout` is a NanaVTS-focused Spout output crate. It intentionally exposes
-only sender backends needed by NanaVTS instead of the full Spout2 SDK surface.
+`NANALIVE-spout` is a NANALIVE-focused Spout output crate. It intentionally exposes
+only sender backends needed by NANALIVE instead of the full Spout2 SDK surface.
 
 ## Backends
 
@@ -28,15 +28,15 @@ git submodule update --init --recursive
 ## Quick Start
 
 ```rust,no_run
-use nanavts_spout::{
+use NANALIVE_spout::{
     CpuDx11Sender, SpoutFormat, SpoutFrameRef, SpoutSenderBackend,
 };
 
-fn main() -> nanavts_spout::Result<()> {
+fn main() -> NANALIVE_spout::Result<()> {
     let (width, height) = (1280, 720);
     let pixels = vec![0u8; (width * height * 4) as usize];
 
-    let mut sender = CpuDx11Sender::new("NanaVTS")?;
+    let mut sender = CpuDx11Sender::new("NANALIVE")?;
     sender.resize_or_recreate(width, height, SpoutFormat::default())?;
     sender.publish(SpoutFrameRef::CpuPixels {
         pixels: &pixels,
@@ -60,7 +60,7 @@ The sender must be constructed from an existing D3D12 device and command queue:
 
 ```rust,no_run
 # use core::ffi::c_void;
-# use nanavts_spout::{
+# use NANALIVE_spout::{
 #     GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue,
 #     ID3D12Device, SpoutFormat, SpoutFrameRef, SpoutSenderBackend,
 # };
@@ -68,9 +68,9 @@ The sender must be constructed from an existing D3D12 device and command queue:
 #     device: *mut ID3D12Device,
 #     queue: *mut ID3D12CommandQueue,
 #     resource: *mut c_void,
-# ) -> nanavts_spout::Result<()> {
+# ) -> NANALIVE_spout::Result<()> {
 let mut sender = GpuDx12ExperimentalSender::with_d3d12_device_and_queue(
-    "NanaVTS DX12",
+    "NANALIVE DX12",
     device,
     queue,
 )?;
@@ -92,20 +92,20 @@ let report = sender.publish_report(SpoutFrameRef::Dx12Resource {
 `publish_report` reports whether a frame was actually sent. `Sent` means the
 native shim copied to Spout's shared texture and signaled a new frame.
 `SkippedAccessTimeout` means Spout texture access was not available within the
-configured timeout, so NanaVTS can observe a skipped Spout frame instead of
+configured timeout, so NANALIVE can observe a skipped Spout frame instead of
 stalling rendering.
 
 The default DX12 publish policy is:
 
 ```rust
-# use nanavts_spout::GpuDx12PublishOptions;
+# use NANALIVE_spout::GpuDx12PublishOptions;
 GpuDx12PublishOptions {
     access_timeout_ms: 1,
     collect_timing: false,
 }
 ```
 
-Recommended NanaVTS policy is to prioritize display/render work. Spout publish
+Recommended NANALIVE policy is to prioritize display/render work. Spout publish
 should skip rather than stall when texture access cannot be acquired within the
 frame budget. Use a longer Spout-priority timeout only behind an explicit user
 setting.
@@ -113,7 +113,7 @@ setting.
 Enable it with:
 
 ```toml
-nanavts-spout = { path = "...", default-features = false, features = ["gpu-dx12-experimental"] }
+NANALIVE-spout = { path = "...", default-features = false, features = ["gpu-dx12-experimental"] }
 ```
 
 ## Performance Probe
@@ -137,7 +137,7 @@ Useful options:
 --mode both|cpu|gpu-dx12
 --width 1280 --height 720
 --frames 600 --warmup 60
---name nanavts-spout-perf
+--name NANALIVE-spout-perf
 --csv
 ```
 
@@ -153,5 +153,5 @@ cargo test --workspace --features cpu-dx11
 
 ## License
 
-`nanavts-spout` is licensed under the BSD 2-Clause license to match the bundled
+`NANALIVE-spout` is licensed under the BSD 2-Clause license to match the bundled
 Spout2 SDK. See [LICENSE](LICENSE) and `sys/vendor/Spout2` for details.
