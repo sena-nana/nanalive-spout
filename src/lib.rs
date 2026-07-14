@@ -1,4 +1,4 @@
-//! NANALIVE-focused Spout sender output backend.
+//! NanaLive-focused Spout sender output backend.
 //!
 //! The public API intentionally exposes only the controlled output surface used
 //! by NANALIVE: CPU DirectX 11 sender output by default and an opt-in
@@ -25,9 +25,9 @@ pub use gpu_dx12::{
 };
 
 /// The Spout SDK version this crate is built against.
-pub use NANALIVE_spout_sys::SPOUT_SDK_VERSION;
+pub use nanalive_spout_sys::SPOUT_SDK_VERSION;
 
-/// NANALIVE Spout output backend kinds.
+/// NanaLive Spout output backend kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpoutBackendKind {
     /// CPU pixel upload through Spout's DirectX 11 sender path.
@@ -41,7 +41,7 @@ pub enum SpoutBackendKind {
 pub struct SpoutFormat(u32);
 
 impl SpoutFormat {
-    /// `DXGI_FORMAT_B8G8R8A8_UNORM`, the default NANALIVE CPU output format.
+    /// `DXGI_FORMAT_B8G8R8A8_UNORM`, the default NanaLive CPU output format.
     pub const B8G8R8A8_UNORM: Self = Self(87);
     /// `DXGI_FORMAT_R8G8B8A8_UNORM`.
     pub const R8G8B8A8_UNORM: Self = Self(28);
@@ -224,7 +224,7 @@ pub fn sdk_version() -> String {
     #[cfg(all(windows, any(feature = "cpu-dx11", feature = "gpu-dx12-experimental")))]
     {
         util::read_cstr_buf(|buf, len| unsafe {
-            NANALIVE_spout_sys::spout_get_sdk_version(buf, len)
+            nanalive_spout_sys::spout_get_sdk_version(buf, len)
         })
     }
     #[cfg(not(all(windows, any(feature = "cpu-dx11", feature = "gpu-dx12-experimental"))))]

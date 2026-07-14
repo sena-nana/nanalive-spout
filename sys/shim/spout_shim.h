@@ -1,5 +1,5 @@
 /*
- * Narrow C ABI for NANALIVE Spout sender output.
+ * Narrow C ABI for NanaLive Spout sender output.
  */
 #ifndef NANALIVE_SPOUT_SHIM_H
 #define NANALIVE_SPOUT_SHIM_H

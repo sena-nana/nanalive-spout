@@ -1,4 +1,4 @@
-//! Build script for `NANALIVE-spout-sys`.
+//! Build script for `nanalive-spout-sys`.
 //!
 //! Compiles the vendored Spout2 SDK pieces needed by NANALIVE sender output
 //! together with our flat C++ shim (`shim/spout_shim.cpp`) into a single static
@@ -32,7 +32,7 @@ fn main() {
     let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
     if target_env != "msvc" {
         panic!(
-            "NANALIVE-spout-sys requires the MSVC toolchain (a *-pc-windows-msvc target); \
+            "nanalive-spout-sys requires the MSVC toolchain (a *-pc-windows-msvc target); \
              found target_env = {target_env:?}. The vendored Spout2 C++ uses \
              MSVC-only facilities (strncpy_s, #pragma comment(lib, ...), <direct.h>)."
         );
@@ -46,7 +46,7 @@ fn main() {
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     if target_arch == "aarch64" {
         panic!(
-            "NANALIVE-spout-sys does not support Windows on ARM (aarch64): the vendored \
+            "nanalive-spout-sys does not support Windows on ARM (aarch64): the vendored \
              Spout SSE2 SIMD sources require the upstream `sse2neon` shim, which \
              this build does not configure. Use an x86_64 (x64) target."
         );

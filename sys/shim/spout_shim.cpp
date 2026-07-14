@@ -185,7 +185,7 @@ void init_send_result(spout_dx12_send_result_t* result)
     result->flush_us = 0;
 }
 
-class NANALIVE_spoutDX12 : public spoutDX12 {
+class nanalive_spoutDX12 : public spoutDX12 {
 public:
     bool WrapDX12ResourceEx(ID3D12Resource* pDX12Resource,
                             ID3D11Resource** ppWrapped11Resource,
@@ -209,7 +209,7 @@ public:
             IID_PPV_ARGS(ppWrapped11Resource));
 
         if (FAILED(hr)) {
-            SpoutLogError("NANALIVE_spoutDX12::WrapDX12ResourceEx failed (%d 0x%.7X)", LOWORD(hr), UINT(hr));
+            SpoutLogError("nanalive_spoutDX12::WrapDX12ResourceEx failed (%d 0x%.7X)", LOWORD(hr), UINT(hr));
             return false;
         }
         return true;
@@ -309,14 +309,14 @@ private:
     }
 };
 
-inline NANALIVE_spoutDX12* as_dx12(spout_dx12_t* h) { return reinterpret_cast<NANALIVE_spoutDX12*>(h); }
+inline nanalive_spoutDX12* as_dx12(spout_dx12_t* h) { return reinterpret_cast<nanalive_spoutDX12*>(h); }
 }
 
 extern "C" {
 
 spout_dx12_t* spout_dx12_create(void) {
     try {
-        return reinterpret_cast<spout_dx12_t*>(new NANALIVE_spoutDX12());
+        return reinterpret_cast<spout_dx12_t*>(new nanalive_spoutDX12());
     } catch (...) {
         return nullptr;
     }

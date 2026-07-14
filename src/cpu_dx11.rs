@@ -12,7 +12,7 @@ use core::ptr;
 /// CPU pixel Spout sender using the DirectX 11 backend.
 pub struct CpuDx11Sender {
     #[cfg(windows)]
-    raw: *mut NANALIVE_spout_sys::spout_dx_t,
+    raw: *mut nanalive_spout_sys::spout_dx_t,
     released: bool,
     width: Option<u32>,
     height: Option<u32>,
@@ -32,21 +32,21 @@ impl CpuDx11Sender {
         {
             let cname = cstring(name)?;
             unsafe {
-                let raw = NANALIVE_spout_sys::spout_dx_create();
+                let raw = nanalive_spout_sys::spout_dx_create();
                 if raw.is_null() {
                     return Err(SpoutOutputError::BackendUnavailable);
                 }
-                if NANALIVE_spout_sys::spout_dx_open_directx11(raw, ptr::null_mut()) == 0
-                    || NANALIVE_spout_sys::spout_dx_get_device(raw).is_null()
+                if nanalive_spout_sys::spout_dx_open_directx11(raw, ptr::null_mut()) == 0
+                    || nanalive_spout_sys::spout_dx_get_device(raw).is_null()
                 {
-                    NANALIVE_spout_sys::spout_dx_destroy(raw);
+                    nanalive_spout_sys::spout_dx_destroy(raw);
                     return Err(SpoutOutputError::BackendUnavailable);
                 }
-                if NANALIVE_spout_sys::spout_dx_set_sender_name(raw, cname.as_ptr()) == 0 {
-                    NANALIVE_spout_sys::spout_dx_destroy(raw);
+                if nanalive_spout_sys::spout_dx_set_sender_name(raw, cname.as_ptr()) == 0 {
+                    nanalive_spout_sys::spout_dx_destroy(raw);
                     return Err(SpoutOutputError::BackendUnavailable);
                 }
-                NANALIVE_spout_sys::spout_dx_set_sender_format(
+                nanalive_spout_sys::spout_dx_set_sender_format(
                     raw,
                     SpoutFormat::default().dxgi_format(),
                 );
@@ -82,29 +82,29 @@ impl SpoutSenderBackend for CpuDx11Sender {
         #[cfg(windows)]
         unsafe {
             let active =
-                !self.released && NANALIVE_spout_sys::spout_dx_is_initialized(self.raw) != 0;
+                !self.released && nanalive_spout_sys::spout_dx_is_initialized(self.raw) != 0;
             SpoutStatus {
                 available: true,
                 enabled: !self.released,
                 active,
                 backend: Some(SpoutBackendKind::CpuDx11),
                 width: if active {
-                    Some(NANALIVE_spout_sys::spout_dx_get_width(self.raw))
+                    Some(nanalive_spout_sys::spout_dx_get_width(self.raw))
                 } else {
                     self.width
                 },
                 height: if active {
-                    Some(NANALIVE_spout_sys::spout_dx_get_height(self.raw))
+                    Some(nanalive_spout_sys::spout_dx_get_height(self.raw))
                 } else {
                     self.height
                 },
                 fps: if active {
-                    Some(NANALIVE_spout_sys::spout_dx_get_fps(self.raw))
+                    Some(nanalive_spout_sys::spout_dx_get_fps(self.raw))
                 } else {
                     None
                 },
                 frame: if active {
-                    Some(NANALIVE_spout_sys::spout_dx_get_frame(self.raw) as i64)
+                    Some(nanalive_spout_sys::spout_dx_get_frame(self.raw) as i64)
                 } else {
                     None
                 },
@@ -127,7 +127,7 @@ impl SpoutSenderBackend for CpuDx11Sender {
         #[cfg(windows)]
         if !self.released {
             unsafe {
-                NANALIVE_spout_sys::spout_dx_set_sender_format(self.raw, format.dxgi_format())
+                nanalive_spout_sys::spout_dx_set_sender_format(self.raw, format.dxgi_format())
             };
         }
 
@@ -162,7 +162,7 @@ impl SpoutSenderBackend for CpuDx11Sender {
         }
         #[cfg(windows)]
         unsafe {
-            let ok = NANALIVE_spout_sys::spout_dx_send_image(
+            let ok = nanalive_spout_sys::spout_dx_send_image(
                 self.raw,
                 pixels.as_ptr(),
                 width,
@@ -183,7 +183,7 @@ impl SpoutSenderBackend for CpuDx11Sender {
         }
         #[cfg(windows)]
         unsafe {
-            NANALIVE_spout_sys::spout_dx_release_sender(self.raw);
+            nanalive_spout_sys::spout_dx_release_sender(self.raw);
         }
         self.released = true;
     }
@@ -194,7 +194,7 @@ impl Drop for CpuDx11Sender {
         self.release();
         #[cfg(windows)]
         unsafe {
-            NANALIVE_spout_sys::spout_dx_destroy(self.raw);
+            nanalive_spout_sys::spout_dx_destroy(self.raw);
         }
     }
 }

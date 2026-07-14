@@ -1,6 +1,6 @@
-# NANALIVE-spout
+# nanalive-spout
 
-`NANALIVE-spout` is a NANALIVE-focused Spout output crate. It intentionally exposes
+`nanalive-spout` is a NanaLive-focused Spout output crate. It intentionally exposes
 only sender backends needed by NANALIVE instead of the full Spout2 SDK surface.
 
 ## Backends
@@ -28,15 +28,15 @@ git submodule update --init --recursive
 ## Quick Start
 
 ```rust,no_run
-use NANALIVE_spout::{
+use nanalive_spout::{
     CpuDx11Sender, SpoutFormat, SpoutFrameRef, SpoutSenderBackend,
 };
 
-fn main() -> NANALIVE_spout::Result<()> {
+fn main() -> nanalive_spout::Result<()> {
     let (width, height) = (1280, 720);
     let pixels = vec![0u8; (width * height * 4) as usize];
 
-    let mut sender = CpuDx11Sender::new("NANALIVE")?;
+    let mut sender = CpuDx11Sender::new("nanalive")?;
     sender.resize_or_recreate(width, height, SpoutFormat::default())?;
     sender.publish(SpoutFrameRef::CpuPixels {
         pixels: &pixels,
@@ -60,7 +60,7 @@ The sender must be constructed from an existing D3D12 device and command queue:
 
 ```rust,no_run
 # use core::ffi::c_void;
-# use NANALIVE_spout::{
+# use nanalive_spout::{
 #     GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue,
 #     ID3D12Device, SpoutFormat, SpoutFrameRef, SpoutSenderBackend,
 # };
@@ -68,9 +68,9 @@ The sender must be constructed from an existing D3D12 device and command queue:
 #     device: *mut ID3D12Device,
 #     queue: *mut ID3D12CommandQueue,
 #     resource: *mut c_void,
-# ) -> NANALIVE_spout::Result<()> {
+# ) -> nanalive_spout::Result<()> {
 let mut sender = GpuDx12ExperimentalSender::with_d3d12_device_and_queue(
-    "NANALIVE DX12",
+    "NanaLive DX12",
     device,
     queue,
 )?;
@@ -98,7 +98,7 @@ stalling rendering.
 The default DX12 publish policy is:
 
 ```rust
-# use NANALIVE_spout::GpuDx12PublishOptions;
+# use nanalive_spout::GpuDx12PublishOptions;
 GpuDx12PublishOptions {
     access_timeout_ms: 1,
     collect_timing: false,
@@ -113,7 +113,7 @@ setting.
 Enable it with:
 
 ```toml
-NANALIVE-spout = { path = "...", default-features = false, features = ["gpu-dx12-experimental"] }
+nanalive-spout = { path = "...", default-features = false, features = ["gpu-dx12-experimental"] }
 ```
 
 ## Performance Probe
@@ -137,7 +137,7 @@ Useful options:
 --mode both|cpu|gpu-dx12
 --width 1280 --height 720
 --frames 600 --warmup 60
---name NANALIVE-spout-perf
+--name nanalive-spout-perf
 --csv
 ```
 
@@ -153,5 +153,5 @@ cargo test --workspace --features cpu-dx11
 
 ## License
 
-`NANALIVE-spout` is licensed under the BSD 2-Clause license to match the bundled
+`nanalive-spout` is licensed under the BSD 2-Clause license to match the bundled
 Spout2 SDK. See [LICENSE](LICENSE) and `sys/vendor/Spout2` for details.
