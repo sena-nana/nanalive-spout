@@ -10,7 +10,11 @@ pub const SPOUT_SDK_VERSION: &str = "2.007.017";
 #[cfg(windows)]
 mod ffi {
     use core::ffi::{c_char, c_int};
-    #[cfg(any(feature = "cpu-dx11", feature = "gpu-dx12-experimental"))]
+    #[cfg(any(
+        feature = "cpu-dx11",
+        feature = "gpu-dx11-texture",
+        feature = "gpu-dx12-experimental"
+    ))]
     use core::ffi::{c_double, c_long, c_uint, c_void};
 
     unsafe extern "C" {
@@ -46,6 +50,54 @@ mod ffi {
         pub fn spout_dx_get_height(h: *mut spout_dx_t) -> c_uint;
         pub fn spout_dx_get_fps(h: *mut spout_dx_t) -> c_double;
         pub fn spout_dx_get_frame(h: *mut spout_dx_t) -> c_long;
+    }
+
+    #[cfg(feature = "gpu-dx11-texture")]
+    #[repr(C)]
+    pub struct spout_dx11_gpu_t {
+        _private: [u8; 0],
+    }
+
+    #[cfg(feature = "gpu-dx11-texture")]
+    #[repr(C)]
+    #[derive(Debug, Clone, Copy, Default)]
+    pub struct spout_dx11_send_result_t {
+        pub status: c_int,
+        pub frame: c_long,
+        pub access_wait_us: u64,
+        pub copy_us: u64,
+        pub flush_us: u64,
+    }
+
+    #[cfg(feature = "gpu-dx11-texture")]
+    unsafe extern "C" {
+        pub fn spout_dx11_gpu_create() -> *mut spout_dx11_gpu_t;
+        pub fn spout_dx11_gpu_destroy(h: *mut spout_dx11_gpu_t);
+        pub fn spout_dx11_gpu_open(
+            h: *mut spout_dx11_gpu_t,
+            device: *mut c_void,
+            context: *mut c_void,
+        ) -> c_int;
+        pub fn spout_dx11_gpu_set_sender_name(
+            h: *mut spout_dx11_gpu_t,
+            name: *const c_char,
+        ) -> c_int;
+        pub fn spout_dx11_gpu_send_texture(
+            h: *mut spout_dx11_gpu_t,
+            texture: *mut c_void,
+            width: c_uint,
+            height: c_uint,
+            dxgi_format: c_uint,
+            access_timeout_ms: c_uint,
+            collect_timing: c_uint,
+            out_result: *mut spout_dx11_send_result_t,
+        ) -> c_int;
+        pub fn spout_dx11_gpu_release_sender(h: *mut spout_dx11_gpu_t);
+        pub fn spout_dx11_gpu_is_initialized(h: *mut spout_dx11_gpu_t) -> c_int;
+        pub fn spout_dx11_gpu_get_width(h: *mut spout_dx11_gpu_t) -> c_uint;
+        pub fn spout_dx11_gpu_get_height(h: *mut spout_dx11_gpu_t) -> c_uint;
+        pub fn spout_dx11_gpu_get_fps(h: *mut spout_dx11_gpu_t) -> c_double;
+        pub fn spout_dx11_gpu_get_frame(h: *mut spout_dx11_gpu_t) -> c_long;
     }
 
     #[cfg(feature = "gpu-dx12-experimental")]
