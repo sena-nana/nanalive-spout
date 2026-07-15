@@ -23,7 +23,6 @@ mod perf {
         SpoutFrameRef, SpoutPublishStatus, SpoutSenderBackend,
     };
     use std::error::Error;
-    use std::ffi::c_void;
     use std::fmt;
     use std::time::{Duration, Instant};
     use windows::Win32::Foundation::{CloseHandle, FILETIME, HANDLE, WAIT_OBJECT_0};
@@ -239,8 +238,8 @@ mod perf {
         let mut sender = unsafe {
             GpuDx12ExperimentalSender::with_d3d12_device_and_queue(
                 &format!("{}-gpu-dx12", config.name),
-                dx.device.as_raw() as *mut c_void,
-                dx.queue.as_raw() as *mut c_void,
+                dx.device.as_raw(),
+                dx.queue.as_raw(),
             )?
         };
         sender.resize_or_recreate(config.width, config.height, SpoutFormat::R8G8B8A8_UNORM)?;
@@ -250,7 +249,7 @@ mod perf {
         for frame in 0..config.warmup {
             unsafe { dx.clear(frame)? };
             let _ = sender.publish_report(SpoutFrameRef::Dx12Resource {
-                resource: dx.texture.as_raw() as *mut c_void,
+                resource: dx.texture.as_raw(),
                 initial_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
                 final_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
             });
@@ -261,7 +260,7 @@ mod perf {
             unsafe { dx.clear(frame + config.warmup)? };
             let start = Instant::now();
             let result = sender.publish_report(SpoutFrameRef::Dx12Resource {
-                resource: dx.texture.as_raw() as *mut c_void,
+                resource: dx.texture.as_raw(),
                 initial_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
                 final_state: D3D12_RESOURCE_STATE_RENDER_TARGET.0 as u32,
             });
