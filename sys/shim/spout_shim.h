@@ -31,6 +31,37 @@ long         spout_dx_get_frame(spout_dx_t* h);
 
 #endif
 
+#if defined(NANALIVE_SPOUT_GPU_DX11)
+
+typedef struct spout_dx11_gpu_t spout_dx11_gpu_t;
+
+typedef struct spout_dx11_send_result_t {
+    int status;
+    long frame;
+    unsigned long long access_wait_us;
+    unsigned long long copy_us;
+    unsigned long long flush_us;
+} spout_dx11_send_result_t;
+
+spout_dx11_gpu_t* spout_dx11_gpu_create(void);
+void spout_dx11_gpu_destroy(spout_dx11_gpu_t* h);
+int spout_dx11_gpu_open(spout_dx11_gpu_t* h, void* device, void* context);
+int spout_dx11_gpu_set_sender_name(spout_dx11_gpu_t* h, const char* name);
+int spout_dx11_gpu_send_texture(spout_dx11_gpu_t* h, void* texture,
+                                unsigned int width, unsigned int height,
+                                unsigned int dxgi_format,
+                                unsigned int access_timeout_ms,
+                                unsigned int collect_timing,
+                                spout_dx11_send_result_t* out_result);
+void spout_dx11_gpu_release_sender(spout_dx11_gpu_t* h);
+int spout_dx11_gpu_is_initialized(spout_dx11_gpu_t* h);
+unsigned int spout_dx11_gpu_get_width(spout_dx11_gpu_t* h);
+unsigned int spout_dx11_gpu_get_height(spout_dx11_gpu_t* h);
+double spout_dx11_gpu_get_fps(spout_dx11_gpu_t* h);
+long spout_dx11_gpu_get_frame(spout_dx11_gpu_t* h);
+
+#endif
+
 #if defined(NANALIVE_SPOUT_GPU_DX12)
 
 typedef struct spout_dx12_t spout_dx12_t;

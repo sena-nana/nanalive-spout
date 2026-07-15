@@ -37,17 +37,17 @@ jobs:
         with:
           components: clippy
       - name: Build (all targets)
-        run: cargo build --workspace --all-targets
+        run: cargo build --workspace --all-targets --all-features
       - name: Test (default features)
         run: cargo test --workspace
-      - name: Test (dx only)
-        run: cargo test --no-default-features --features dx
-      - name: Test (gl only)
-        run: cargo test --no-default-features --features gl
+      - name: Test (direct DX11 texture sender)
+        run: cargo test --no-default-features --features gpu-dx11-texture
+      - name: Test (experimental DX12 sender)
+        run: cargo test --no-default-features --features gpu-dx12-experimental
       - name: Build (no backends)
         run: cargo build --no-default-features
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Docs
         run: cargo doc --no-deps --all-features
         env:

@@ -53,9 +53,10 @@ fn main() {
     }
 
     let cpu_dx11 = std::env::var_os("CARGO_FEATURE_CPU_DX11").is_some();
+    let gpu_dx11 = std::env::var_os("CARGO_FEATURE_GPU_DX11_TEXTURE").is_some();
     let gpu_dx12 = std::env::var_os("CARGO_FEATURE_GPU_DX12_EXPERIMENTAL").is_some();
 
-    if !cpu_dx11 && !gpu_dx12 {
+    if !cpu_dx11 && !gpu_dx11 && !gpu_dx12 {
         return;
     }
 
@@ -109,11 +110,14 @@ fn main() {
         build.file(gl_dir.join(f));
     }
 
-    if cpu_dx11 || gpu_dx12 {
+    if cpu_dx11 || gpu_dx11 || gpu_dx12 {
         build.file(dx_dir.join("SpoutDX.cpp"));
     }
     if cpu_dx11 {
         build.define("NANALIVE_SPOUT_CPU_DX11", None);
+    }
+    if gpu_dx11 {
+        build.define("NANALIVE_SPOUT_GPU_DX11", None);
     }
     if gpu_dx12 {
         build.file(dx12_dir.join("SpoutDX12.cpp"));

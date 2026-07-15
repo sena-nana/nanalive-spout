@@ -8,6 +8,7 @@ only sender backends needed by NANALIVE instead of the full Spout2 SDK surface.
 | Feature | Backend | Status |
 | ------- | ------- | ------ |
 | `cpu-dx11` | CPU pixel sender through Spout DirectX 11 | Default |
+| `gpu-dx11-texture` | Existing D3D11 texture sender for NanaLive Link receivers | Opt-in |
 | `gpu-dx12-experimental` | D3D12 resource sender through Spout's D3D11On12 bridge | Opt-in experimental |
 
 No receiver API, OpenGL backend, sender discovery, sender selection UI, `winit`,
@@ -48,6 +49,16 @@ fn main() -> nanalive_spout::Result<()> {
     Ok(())
 }
 ```
+
+## Direct DX11 Texture Sender
+
+`GpuDx11TextureSender` accepts an existing premultiplied
+`B8G8R8A8_UNORM` texture from the caller's D3D11 device. The native boundary
+validates the device, format, dimensions, usage, mip count, and sample count,
+then performs exactly one GPU `CopyResource` into Spout's shared surface. It
+never reads or traverses frame pixels on the CPU. Access waits are bounded and
+reported as `SkippedAccessTimeout`, so a receiver can drop a frame without
+building latency.
 
 ## Experimental DX12
 

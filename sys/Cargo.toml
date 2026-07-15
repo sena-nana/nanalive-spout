@@ -28,6 +28,7 @@ name = "nanalive_spout_sys"
 [features]
 default = ["cpu-dx11"]
 cpu-dx11 = []
+gpu-dx11-texture = []
 gpu-dx12-experimental = []
 
 [build-dependencies]

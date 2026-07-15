@@ -10,6 +10,8 @@ mod util;
 
 #[cfg(feature = "cpu-dx11")]
 mod cpu_dx11;
+#[cfg(feature = "gpu-dx11-texture")]
+mod gpu_dx11;
 #[cfg(feature = "gpu-dx12-experimental")]
 mod gpu_dx12;
 
@@ -19,6 +21,11 @@ pub use error::{Result, SpoutOutputError};
 
 #[cfg(feature = "cpu-dx11")]
 pub use cpu_dx11::CpuDx11Sender;
+#[cfg(feature = "gpu-dx11-texture")]
+pub use gpu_dx11::{
+    GpuDx11PublishOptions, GpuDx11PublishReport, GpuDx11Status, GpuDx11TextureSender, ID3D11Device,
+    ID3D11DeviceContext, ID3D11Texture2D, SpoutDx11Timing,
+};
 #[cfg(feature = "gpu-dx12-experimental")]
 pub use gpu_dx12::{
     GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue, ID3D12Device,
@@ -32,6 +39,8 @@ pub use nanalive_spout_sys::SPOUT_SDK_VERSION;
 pub enum SpoutBackendKind {
     /// CPU pixel upload through Spout's DirectX 11 sender path.
     CpuDx11,
+    /// GPU texture output from an existing DirectX 11 device.
+    GpuDx11Texture,
     /// Experimental GPU texture output through Spout's D3D11On12 DX12 bridge.
     GpuDx12Experimental,
 }
@@ -254,6 +263,16 @@ pub fn backend_status(kind: SpoutBackendKind) -> SpoutStatus {
             #[cfg(not(all(windows, feature = "gpu-dx12-experimental")))]
             {
                 SpoutStatus::unavailable(kind, "experimental DX12 Spout backend is not available")
+            }
+        }
+        SpoutBackendKind::GpuDx11Texture => {
+            #[cfg(all(windows, feature = "gpu-dx11-texture"))]
+            {
+                SpoutStatus::available(kind)
+            }
+            #[cfg(not(all(windows, feature = "gpu-dx11-texture")))]
+            {
+                SpoutStatus::unavailable(kind, "GPU DX11 texture backend is not available")
             }
         }
     }
