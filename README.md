@@ -9,6 +9,7 @@ only sender backends needed by NANALIVE instead of the full Spout2 SDK surface.
 | ------- | ------- | ------ |
 | `cpu-dx11` | CPU pixel sender through Spout DirectX 11 | Default |
 | `gpu-dx11-texture` | Existing D3D11 texture sender for NanaLive Link receivers | Opt-in |
+| `gpu-dx11-shared` | Shared textures + shared fence exported by another device (e.g. NanaUI DX12) | Opt-in |
 | `gpu-dx12-experimental` | D3D12 resource sender through Spout's D3D11On12 bridge | Opt-in experimental |
 
 No receiver API, OpenGL backend, sender discovery, sender selection UI, `winit`,
@@ -59,6 +60,49 @@ then performs exactly one GPU `CopyResource` into Spout's shared surface. It
 never reads or traverses frame pixels on the CPU. Access waits are bounded and
 reported as `SkippedAccessTimeout`, so a receiver can drop a frame without
 building latency.
+
+## Shared-Texture Sender
+
+`GpuDx11SharedSender` (feature `gpu-dx11-shared`) publishes frames another
+device exported as NT-handle shared `B8G8R8A8_UNORM` textures plus one shared
+fence, such as NanaUI's DX12 `NativeExportPool`. It creates its own D3D11
+device on the exporting adapter (`IDXGIFactory4::EnumAdapterByLuid`), opens
+every texture of a pool once per `pool_generation` (`OpenSharedResource1`)
+and the fence (`OpenSharedFence`), and for each frame:
+
+1. `ID3D11DeviceContext4::Wait(fence, ready_value)` on the GPU;
+2. Spout access, one `CopyResource` of the frame's slot into Spout's shared
+   surface, `Flush`, `SetNewFrame`;
+3. `ID3D11DeviceContext4::Signal(fence, release_value)` and `Flush`, also when
+   the access timed out or the copy failed, so the producer gets the slot
+   back.
+
+Nothing waits on the CPU and no pixel is read on the CPU. A frame from another
+adapter is refused; create a new sender when the producer's adapter changes.
+
+```rust,no_run
+# use nanalive_spout::{GpuDx11SharedOptions, GpuDx11SharedSender, SharedTextureFrame};
+# unsafe fn demo(luid: i64, textures: &[*mut core::ffi::c_void], fence: *mut core::ffi::c_void)
+# -> nanalive_spout::Result<()> {
+let mut sender = GpuDx11SharedSender::new("NanaType", luid)?;
+let frame = SharedTextureFrame {
+    pool_generation: 1,
+    adapter_luid: luid,
+    width: 1920,
+    height: 1080,
+    textures,
+    fence,
+    slot: 0,
+    ready_value: 1,
+    release_value: 2,
+};
+unsafe { sender.send(&frame, GpuDx11SharedOptions::default()) }?;
+# Ok(())
+# }
+```
+
+`examples/gpu_dx11_shared_sender.rs` drives it from a stand-in producer on
+the same adapter.
 
 ## Experimental DX12
 

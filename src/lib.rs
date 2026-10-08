@@ -12,6 +12,8 @@ mod util;
 mod cpu_dx11;
 #[cfg(feature = "gpu-dx11-texture")]
 mod gpu_dx11;
+#[cfg(feature = "gpu-dx11-shared")]
+mod gpu_dx11_shared;
 #[cfg(feature = "gpu-dx12-experimental")]
 mod gpu_dx12;
 
@@ -26,6 +28,8 @@ pub use gpu_dx11::{
     GpuDx11PublishOptions, GpuDx11PublishReport, GpuDx11Status, GpuDx11TextureSender, ID3D11Device,
     ID3D11DeviceContext, ID3D11Texture2D, SpoutDx11Timing,
 };
+#[cfg(feature = "gpu-dx11-shared")]
+pub use gpu_dx11_shared::{GpuDx11SharedOptions, GpuDx11SharedSender, SharedTextureFrame};
 #[cfg(feature = "gpu-dx12-experimental")]
 pub use gpu_dx12::{
     GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue, ID3D12Device,
