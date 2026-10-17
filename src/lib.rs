@@ -29,7 +29,9 @@ pub use gpu_dx11::{
     ID3D11DeviceContext, ID3D11Texture2D, SpoutDx11Timing,
 };
 #[cfg(feature = "gpu-dx11-shared")]
-pub use gpu_dx11_shared::{GpuDx11SharedOptions, GpuDx11SharedSender, SharedTextureFrame};
+pub use gpu_dx11_shared::{
+    GpuDx11SharedDevice, GpuDx11SharedOptions, GpuDx11SharedSender, SharedTextureFrame,
+};
 #[cfg(feature = "gpu-dx12-experimental")]
 pub use gpu_dx12::{
     GpuDx12ExperimentalSender, GpuDx12PublishOptions, ID3D12CommandQueue, ID3D12Device,

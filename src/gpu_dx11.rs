@@ -244,6 +244,43 @@ impl GpuDx11TextureSender {
         }
     }
 
+    /// Create/register a transparent initial BGRA surface without an input
+    /// texture. Does not consume producer synchronization. A successful call
+    /// counts as one published transparent frame in lifetime statistics.
+    pub fn prepare(&mut self, width: u32, height: u32) -> Result<GpuDx11PublishReport> {
+        GpuDx11PublishOptions::bgra8(width, height).validate()?;
+        if self.released {
+            return Ok(self.report(SpoutPublishStatus::BackendUnavailable, None, None));
+        }
+        #[cfg(not(windows))]
+        {
+            Ok(self.report(SpoutPublishStatus::BackendUnavailable, None, None))
+        }
+        #[cfg(windows)]
+        unsafe {
+            let mut native = nanalive_spout_sys::spout_dx11_send_result_t::default();
+            let ok =
+                nanalive_spout_sys::spout_dx11_gpu_prepare(self.raw, width, height, &mut native);
+            let status = match (ok, native.status) {
+                (1, 1) => SpoutPublishStatus::Sent,
+                (1, 2) => SpoutPublishStatus::SkippedAccessTimeout,
+                _ => SpoutPublishStatus::Failed,
+            };
+            if status == SpoutPublishStatus::Sent
+                && (self.width != Some(width) || self.height != Some(height))
+            {
+                self.width = Some(width);
+                self.height = Some(height);
+                self.surface_recreation_count = self.surface_recreation_count.saturating_add(1);
+            }
+            Ok(self.report(
+                status,
+                (native.frame >= 0).then_some(native.frame as i64),
+                None,
+            ))
+        }
+    }
+
     /// Return sender status and monotonic lifetime counters.
     pub fn status(&self) -> GpuDx11Status {
         #[cfg(not(windows))]

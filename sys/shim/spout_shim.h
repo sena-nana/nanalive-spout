@@ -47,6 +47,8 @@ spout_dx11_gpu_t* spout_dx11_gpu_create(void);
 void spout_dx11_gpu_destroy(spout_dx11_gpu_t* h);
 int spout_dx11_gpu_open(spout_dx11_gpu_t* h, void* device, void* context);
 int spout_dx11_gpu_set_sender_name(spout_dx11_gpu_t* h, const char* name);
+int spout_dx11_gpu_prepare(spout_dx11_gpu_t* h, unsigned int width, unsigned int height,
+                           spout_dx11_send_result_t* out_result);
 int spout_dx11_gpu_send_texture(spout_dx11_gpu_t* h, void* texture,
                                 unsigned int width, unsigned int height,
                                 unsigned int dxgi_format,

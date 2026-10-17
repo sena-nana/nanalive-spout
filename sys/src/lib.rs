@@ -82,6 +82,12 @@ mod ffi {
             h: *mut spout_dx11_gpu_t,
             name: *const c_char,
         ) -> c_int;
+        pub fn spout_dx11_gpu_prepare(
+            h: *mut spout_dx11_gpu_t,
+            width: c_uint,
+            height: c_uint,
+            out_result: *mut spout_dx11_send_result_t,
+        ) -> c_int;
         pub fn spout_dx11_gpu_send_texture(
             h: *mut spout_dx11_gpu_t,
             texture: *mut c_void,
