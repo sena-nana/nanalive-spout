@@ -1,7 +1,7 @@
 //! Spout sender for frames another device exported as shared textures plus a
 //! shared fence (for example NanaUI's DX12 `NativeExportPool`).
 //!
-//! Senders share a D3D11 bridge device on the exporting adapter (found by LUID),
+//! Senders share a D3D11 bridge device on the exporting adapter (found by LUID).
 //! Each sender opens every shared texture once per pool generation with
 //! `ID3D11Device1::OpenSharedResource1` and the fence with
 //! `ID3D11Device5::OpenSharedFence`, and for each frame:
@@ -81,7 +81,6 @@ struct OpenedPool {
 pub struct GpuDx11SharedSender {
     // Declared first: dropped before the device it was created on.
     sender: GpuDx11TextureSender,
-    adapter_luid: i64,
     pool_opens: u64,
     released_without_copy: u64,
     #[cfg(windows)]
@@ -198,7 +197,6 @@ impl GpuDx11SharedSender {
             )?;
             Ok(Self {
                 sender,
-                adapter_luid: bridge.adapter_luid,
                 pool_opens: 0,
                 released_without_copy: 0,
                 opened: None,
@@ -216,7 +214,7 @@ impl GpuDx11SharedSender {
 
     /// The adapter this sender's device is on.
     pub fn adapter_luid(&self) -> i64 {
-        self.adapter_luid
+        self.bridge.adapter_luid()
     }
 
     /// How many pools (handle sets) this sender has opened.
@@ -255,7 +253,7 @@ impl GpuDx11SharedSender {
                 height: frame.height,
             });
         }
-        if frame.adapter_luid != self.adapter_luid
+        if frame.adapter_luid != self.adapter_luid()
             || frame.slot >= frame.textures.len()
             || frame.release_value <= frame.ready_value
         {
@@ -372,7 +370,7 @@ impl GpuDx11SharedSender {
 impl core::fmt::Debug for GpuDx11SharedSender {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GpuDx11SharedSender")
-            .field("adapter_luid", &self.adapter_luid)
+            .field("adapter_luid", &self.adapter_luid())
             .field("pool_opens", &self.pool_opens)
             .field("status", &self.status())
             .finish()
