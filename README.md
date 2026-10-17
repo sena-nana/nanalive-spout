@@ -226,3 +226,13 @@ publish transparent content and start receiver discovery before the producer's
 first frame. This consumes no producer handles or fence values. Preparation
 counts as one sent frame; do not call it on an existing live sender unless a
 clear is intended. Normal `send` and ready/release semantics are unchanged.
+
+
+The native build also corrects the pinned SDK's refresh-rate query: it asks
+Windows for `ENUM_CURRENT_SETTINGS` once, instead of enumerating all supported
+modes for every sender constructor. This both returns the active rate and
+removes repeated mode enumeration. The build applies a checked, exact-function
+replacement to an `OUT_DIR` copy of `SpoutUtils.cpp`; vendor sources and other
+SDK functions are unchanged. Unsupported/unspecified rates retain the 60 Hz
+fallback. An SDK source change fails the build for review rather than silently
+skipping this fix.

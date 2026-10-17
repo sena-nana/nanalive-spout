@@ -16,8 +16,11 @@
 
 use std::path::PathBuf;
 
+mod build_support;
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build_support.rs");
     println!("cargo:rerun-if-changed=shim/spout_shim.cpp");
     println!("cargo:rerun-if-changed=shim/spout_shim.h");
 
@@ -105,10 +108,18 @@ fn main() {
         "SpoutSender.cpp",
         "SpoutSenderNames.cpp",
         "SpoutSharedMemory.cpp",
-        "SpoutUtils.cpp",
     ] {
         build.file(gl_dir.join(f));
     }
+
+    // Keep the pinned SDK checkout immutable. Apply this narrow compatibility
+    // fix to an OUT_DIR copy, preserving the SDK copyright and other functions.
+    let utils = gl_dir.join("SpoutUtils.cpp");
+    println!("cargo:rerun-if-changed={}", utils.display());
+    let patched = build_support::current_refresh_rate(&std::fs::read_to_string(&utils).unwrap());
+    let generated = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("SpoutUtils.cpp");
+    std::fs::write(&generated, patched).unwrap();
+    build.file(generated);
 
     if cpu_dx11 || gpu_dx11 || gpu_dx12 {
         build.file(dx_dir.join("SpoutDX.cpp"));
