@@ -228,6 +228,37 @@ public:
         return false;
     }
 
+    int PrepareSurface(unsigned int width, unsigned int height,
+                       spout_dx11_send_result_t* result)
+    {
+        init_dx11_send_result(result);
+        if (!result || !width || !height || !m_pd3dDevice || !m_pImmediateContext
+            || !CheckSender(width, height, DXGI_FORMAT_B8G8R8A8_UNORM) || !m_pSharedTexture)
+            return 0;
+        IDXGIKeyedMutex* keyed_mutex = nullptr;
+        const bool keyed = acquire_access(1, false, &result->access_wait_us, &keyed_mutex);
+        if (!keyed && !m_named_access_acquired) {
+            ReleaseSender();
+            result->status = NANALIVE_DX11_SEND_SKIPPED_ACCESS_TIMEOUT;
+            return 1;
+        }
+        ID3D11RenderTargetView* view = nullptr;
+        const HRESULT hr = m_pd3dDevice->CreateRenderTargetView(m_pSharedTexture, nullptr, &view);
+        if (SUCCEEDED(hr)) {
+            const float transparent[4] = {};
+            m_pImmediateContext->ClearRenderTargetView(view, transparent);
+            view->Release();
+            m_pImmediateContext->Flush();
+            frame.SetNewFrame();
+            result->frame = GetFrame();
+            result->status = NANALIVE_DX11_SEND_SENT;
+        }
+        release_access(keyed_mutex);
+        // Never leave a failed/uninitialised surface advertised.
+        if (FAILED(hr)) ReleaseSender();
+        return SUCCEEDED(hr) ? 1 : 0;
+    }
+
     int SendTextureFast(ID3D11Texture2D* texture,
                         unsigned int width,
                         unsigned int height,
@@ -407,6 +438,13 @@ int spout_dx11_gpu_set_sender_name(spout_dx11_gpu_t* h, const char* name)
     } catch (...) {
         return 0;
     }
+}
+
+int spout_dx11_gpu_prepare(spout_dx11_gpu_t* h, unsigned int width, unsigned int height,
+                           spout_dx11_send_result_t* result)
+{
+    try { return h ? as_dx11_gpu(h)->PrepareSurface(width, height, result) : 0; }
+    catch (...) { init_dx11_send_result(result); return 0; }
 }
 
 int spout_dx11_gpu_send_texture(spout_dx11_gpu_t* h, void* texture,

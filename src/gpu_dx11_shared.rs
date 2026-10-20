@@ -1,8 +1,8 @@
 //! Spout sender for frames another device exported as shared textures plus a
 //! shared fence (for example NanaUI's DX12 `NativeExportPool`).
 //!
-//! The sender owns a D3D11 device on the exporting adapter (found by LUID),
-//! opens every shared texture once per pool generation with
+//! Senders share a D3D11 bridge device on the exporting adapter (found by LUID).
+//! Each sender opens every shared texture once per pool generation with
 //! `ID3D11Device1::OpenSharedResource1` and the fence with
 //! `ID3D11Device5::OpenSharedFence`, and for each frame:
 //!
@@ -81,27 +81,39 @@ struct OpenedPool {
 pub struct GpuDx11SharedSender {
     // Declared first: dropped before the device it was created on.
     sender: GpuDx11TextureSender,
-    adapter_luid: i64,
     pool_opens: u64,
     released_without_copy: u64,
     #[cfg(windows)]
     opened: Option<OpenedPool>,
+    bridge: GpuDx11SharedDevice,
+}
+
+/// A reusable adapter-specific bridge. Contains no sender registration, shared
+/// surface, imported pool or fence. Clones keep only the device/context alive.
+/// All senders use its immediate context serially on the creating thread;
+/// this handle is deliberately neither Send nor Sync.
+#[derive(Clone)]
+pub struct GpuDx11SharedDevice {
+    adapter_luid: i64,
     #[cfg(windows)]
+    inner: std::rc::Rc<BridgeInner>,
+    #[cfg(not(windows))]
+    _thread: core::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+#[cfg(windows)]
+struct BridgeInner {
     context4: windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext4,
-    #[cfg(windows)]
     context: windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext,
-    #[cfg(windows)]
     device: windows::Win32::Graphics::Direct3D11::ID3D11Device,
 }
 
-impl GpuDx11SharedSender {
-    /// Create a Spout sender named `name` on a new D3D11 device of the adapter
-    /// `adapter_luid` names. Frames from another adapter are refused; make a
-    /// new sender when the exporting adapter changes.
-    pub fn new(name: &str, adapter_luid: i64) -> Result<Self> {
+impl GpuDx11SharedDevice {
+    /// Create one D3D11 bridge for an exporting adapter's LUID.
+    pub fn new(adapter_luid: i64) -> Result<Self> {
         #[cfg(not(windows))]
         {
-            let _ = (name, adapter_luid);
+            let _ = adapter_luid;
             Err(SpoutOutputError::UnsupportedPlatform)
         }
         #[cfg(windows)]
@@ -143,23 +155,66 @@ impl GpuDx11SharedSender {
             let context = context.ok_or(SpoutOutputError::DeviceInteropUnavailable)?;
             // Shared fences need D3D11.4 (Windows 10 1703+).
             let context4: ID3D11DeviceContext4 = context.cast().map_err(unavailable)?;
-            let sender = GpuDx11TextureSender::new(name, device.as_raw(), context.as_raw())?;
             Ok(Self {
-                sender,
                 adapter_luid,
-                pool_opens: 0,
-                released_without_copy: 0,
-                opened: None,
-                context4,
-                context,
-                device,
+                inner: std::rc::Rc::new(BridgeInner {
+                    context4,
+                    context,
+                    device,
+                }),
             })
         }
     }
 
-    /// The adapter this sender's device is on.
+    /// Adapter identity; a bridge cannot accept frames from another adapter.
     pub fn adapter_luid(&self) -> i64 {
         self.adapter_luid
+    }
+}
+
+impl GpuDx11SharedSender {
+    /// Create a sender with a private bridge. Use `with_device` to share the
+    /// device across outputs or reuse it after dropping a sender.
+    pub fn new(name: &str, adapter_luid: i64) -> Result<Self> {
+        Self::with_device(name, &GpuDx11SharedDevice::new(adapter_luid)?)
+    }
+
+    /// Create a sender on an existing bridge. The sender retains the bridge;
+    /// dropping one sender cannot invalidate another sender's device/context.
+    pub fn with_device(name: &str, bridge: &GpuDx11SharedDevice) -> Result<Self> {
+        #[cfg(not(windows))]
+        {
+            let _ = (name, bridge);
+            Err(SpoutOutputError::UnsupportedPlatform)
+        }
+        #[cfg(windows)]
+        unsafe {
+            use windows::core::Interface;
+            let sender = GpuDx11TextureSender::new(
+                name,
+                bridge.inner.device.as_raw(),
+                bridge.inner.context.as_raw(),
+            )?;
+            Ok(Self {
+                sender,
+                pool_opens: 0,
+                released_without_copy: 0,
+                opened: None,
+                bridge: bridge.clone(),
+            })
+        }
+    }
+
+    /// Advertise a transparent initial surface before the producer's first
+    /// frame. No producer handles are imported or fence values consumed.
+    /// Call only for a new sender; repeated calls clear the receiver again.
+    pub fn prepare(&mut self, width: u32, height: u32) -> Result<GpuDx11PublishReport> {
+        self.sender.prepare(width, height)
+    }
+
+    /// The adapter this sender's device is on.
+    pub fn adapter_luid(&self) -> i64 {
+        self.bridge.adapter_luid()
     }
 
     /// How many pools (handle sets) this sender has opened.
@@ -198,7 +253,7 @@ impl GpuDx11SharedSender {
                 height: frame.height,
             });
         }
-        if frame.adapter_luid != self.adapter_luid
+        if frame.adapter_luid != self.adapter_luid()
             || frame.slot >= frame.textures.len()
             || frame.release_value <= frame.ready_value
         {
@@ -215,7 +270,7 @@ impl GpuDx11SharedSender {
             let opened = self.opened.as_ref().expect("pool was just opened");
             let texture = &opened.textures[frame.slot];
             let fence = opened.fence.clone();
-            let waited = self.context4.Wait(&fence, frame.ready_value);
+            let waited = self.bridge.inner.context4.Wait(&fence, frame.ready_value);
             let report = match waited {
                 Ok(()) => {
                     use windows::core::Interface;
@@ -227,8 +282,12 @@ impl GpuDx11SharedSender {
                 Err(_) => Err(SpoutOutputError::PublishFailed),
             };
             // Release on every path: the producer must get its slot back.
-            let signalled = self.context4.Signal(&fence, frame.release_value);
-            self.context.Flush();
+            let signalled = self
+                .bridge
+                .inner
+                .context4
+                .Signal(&fence, frame.release_value);
+            self.bridge.inner.context.Flush();
             if !matches!(
                 report,
                 Ok(GpuDx11PublishReport {
@@ -262,8 +321,8 @@ impl GpuDx11SharedSender {
         self.opened = None;
         let unavailable = |_| SpoutOutputError::DeviceInteropUnavailable;
         unsafe {
-            let device1: ID3D11Device1 = self.device.cast().map_err(unavailable)?;
-            let device5: ID3D11Device5 = self.device.cast().map_err(unavailable)?;
+            let device1: ID3D11Device1 = self.bridge.inner.device.cast().map_err(unavailable)?;
+            let device5: ID3D11Device5 = self.bridge.inner.device.cast().map_err(unavailable)?;
             let mut textures = Vec::with_capacity(frame.textures.len());
             for handle in frame.textures {
                 let texture: ID3D11Texture2D = device1
@@ -311,9 +370,35 @@ impl GpuDx11SharedSender {
 impl core::fmt::Debug for GpuDx11SharedSender {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GpuDx11SharedSender")
-            .field("adapter_luid", &self.adapter_luid)
+            .field("adapter_luid", &self.adapter_luid())
             .field("pool_opens", &self.pool_opens)
             .field("status", &self.status())
             .finish()
+    }
+}
+
+#[cfg(all(test, windows))]
+mod lifetime_tests {
+    use super::*;
+    #[test]
+    fn final_sender_drop_releases_bridge_ownership() {
+        use windows::Win32::Graphics::Dxgi::{
+            CreateDXGIFactory2, DXGI_CREATE_FACTORY_FLAGS, IDXGIFactory4,
+        };
+        let factory: IDXGIFactory4 =
+            unsafe { CreateDXGIFactory2(DXGI_CREATE_FACTORY_FLAGS(0)) }.unwrap();
+        let luid = unsafe { factory.EnumAdapters1(0).unwrap().GetDesc1() }
+            .unwrap()
+            .AdapterLuid;
+        let bridge =
+            GpuDx11SharedDevice::new((i64::from(luid.HighPart) << 32) | i64::from(luid.LowPart))
+                .unwrap();
+        let weak = std::rc::Rc::downgrade(&bridge.inner);
+        let mut sender = GpuDx11SharedSender::with_device("nanalive ownership", &bridge).unwrap();
+        sender.prepare(32, 16).unwrap();
+        drop(bridge);
+        assert!(weak.upgrade().is_some());
+        drop(sender);
+        assert!(weak.upgrade().is_none());
     }
 }

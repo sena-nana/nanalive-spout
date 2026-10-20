@@ -6,8 +6,8 @@ use core::ffi::c_void;
 use std::time::{Duration, Instant};
 
 use nanalive_spout::{
-    GpuDx11SharedOptions, GpuDx11SharedSender, SharedTextureFrame, SpoutOutputError,
-    SpoutPublishStatus,
+    GpuDx11SharedDevice, GpuDx11SharedOptions, GpuDx11SharedSender, SharedTextureFrame,
+    SpoutOutputError, SpoutPublishStatus,
 };
 use windows::Win32::Foundation::{CloseHandle, GENERIC_ALL, HANDLE, HMODULE};
 use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
@@ -204,5 +204,58 @@ fn a_new_pool_generation_is_reopened_and_other_adapters_are_refused() {
     assert_eq!(
         unsafe { sender.send(&foreign, GpuDx11SharedOptions::default()) }.unwrap_err(),
         SpoutOutputError::DeviceInteropUnavailable
+    );
+}
+
+#[test]
+fn shared_bridge_survives_senders_and_transparent_preparation_opens_no_pool() {
+    let producer = Producer::new();
+    let bridge = GpuDx11SharedDevice::new(producer.luid).unwrap();
+    let mut a = GpuDx11SharedSender::with_device("nanalive bridge A", &bridge).unwrap();
+    let mut b = GpuDx11SharedSender::with_device("nanalive bridge B", &bridge).unwrap();
+    assert_eq!(
+        a.prepare(SIZE.0, SIZE.1).unwrap().status,
+        SpoutPublishStatus::Sent
+    );
+    assert_eq!(a.pool_opens(), 0);
+    assert!(a.status().active);
+    assert_eq!(a.status().width, Some(SIZE.0));
+    for k in 0..16 {
+        if k % 2 == 0 {
+            drop(a);
+            a = GpuDx11SharedSender::with_device("nanalive bridge A", &bridge).unwrap();
+            assert_eq!(
+                a.prepare(SIZE.0, SIZE.1).unwrap().status,
+                SpoutPublishStatus::Sent
+            );
+        }
+        let sender = if k % 2 == 0 { &mut a } else { &mut b };
+        let frame = producer.produce(k);
+        assert_eq!(
+            unsafe { sender.send(&frame, Default::default()) }
+                .unwrap()
+                .status,
+            SpoutPublishStatus::Sent
+        );
+        producer.wait_completed(frame.release_value);
+        assert_eq!(sender.pool_opens(), 1);
+    }
+    // Senders own their bridge references even when the original handle drops.
+    drop(bridge);
+    drop(a);
+    let frame = producer.produce(16);
+    assert_eq!(
+        unsafe { b.send(&frame, Default::default()) }
+            .unwrap()
+            .status,
+        SpoutPublishStatus::Sent
+    );
+    producer.wait_completed(frame.release_value);
+    b.release();
+    b.release();
+    assert!(!b.status().active);
+    assert_eq!(
+        b.prepare(SIZE.0, SIZE.1).unwrap().status,
+        SpoutPublishStatus::BackendUnavailable
     );
 }
