@@ -1,0 +1,57 @@
+[package]
+name = "nanalive-syphon"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "BSD-2-Clause"
+description = "NanaLive-focused Syphon Metal server output for macOS"
+readme = "README.md"
+keywords = ["nanalive", "syphon", "metal", "macos"]
+categories = ["multimedia", "external-ffi-bindings"]
+links = "nanalive_syphon"
+build = "build.rs"
+include = [
+    "Cargo.toml",
+    "build.rs",
+    "README.md",
+    "THIRD_PARTY_NOTICES.txt",
+    "src/**",
+    "shim/**",
+    "tests/**",
+    "vendor/Syphon-Framework/License.txt",
+    "vendor/Syphon-Framework/*.h",
+    "vendor/Syphon-Framework/*.m",
+    "vendor/Syphon-Framework/*.c",
+]
+
+[lib]
+name = "nanalive_syphon"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-metal = { version = "0.3", default-features = false, features = [
+    "std",
+    "MTLAllocation",
+    "MTLCommandBuffer",
+    "MTLCommandQueue",
+    "MTLDevice",
+    "MTLPixelFormat",
+    "MTLResource",
+    "MTLTexture",
+] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2-metal = { version = "0.3", default-features = false, features = [
+    "std",
+    "MTLAllocation",
+    "MTLCommandBuffer",
+    "MTLCommandQueue",
+    "MTLDevice",
+    "MTLPixelFormat",
+    "MTLResource",
+    "MTLTexture",
+    "MTLTypes",
+] }
+
+[build-dependencies]
+cc = "1"

@@ -3,6 +3,13 @@
 `nanalive-spout` is a NanaLive-focused Spout output crate. It intentionally exposes
 only sender backends needed by NANALIVE instead of the full Spout2 SDK surface.
 
+## Syphon (macOS)
+
+The workspace also holds [`nanalive-syphon`](syphon/README.md), the macOS
+counterpart: a statically built Syphon Metal server for publishing a
+`BGRA8Unorm` Metal texture to OBS's *Syphon Client* and other Syphon apps. It
+has no Windows code and no dependency on this crate.
+
 ## Backends
 
 | Feature | Backend | Status |

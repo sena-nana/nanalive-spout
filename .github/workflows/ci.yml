@@ -56,6 +56,24 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
+  macos-syphon:
+    name: macOS (Syphon)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: x86_64-apple-darwin
+      - name: Test
+        run: cargo test -p nanalive-syphon
+      - name: Build (x86_64)
+        run: cargo build -p nanalive-syphon --tests --target x86_64-apple-darwin
+      - name: Clippy
+        run: cargo clippy -p nanalive-syphon --all-targets -- -D warnings
+
   non-windows-stub:
     name: Non-Windows stub compiles
     runs-on: ubuntu-latest

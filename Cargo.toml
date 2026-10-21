@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "sys"]
+members = [".", "sys", "syphon"]
 resolver = "3"
 
 [package]

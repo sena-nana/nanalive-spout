@@ -1,3 +1,6 @@
 [submodule "sys/vendor/Spout2"]
 	path = sys/vendor/Spout2
 	url = https://github.com/leadedge/Spout2.git
+[submodule "syphon/vendor/Syphon-Framework"]
+	path = syphon/vendor/Syphon-Framework
+	url = https://github.com/Syphon/Syphon-Framework.git
